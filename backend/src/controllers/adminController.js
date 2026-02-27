@@ -14,6 +14,7 @@ import Campaign from "../models/Campaign.js";
 import Tag from "../models/Tag.js";
 import B2CPartnerTrip from "../models/B2CPartnerTrip.js";
 import B2CPartnerDriver from "../models/B2CPartnerDriver.js";
+import B2CPartnerSchedule from "../models/B2CPartnerSchedule.js";
 // Get all users for admin
 export const getAllUsers = async (req, res) => {
     try {
@@ -3499,13 +3500,45 @@ export const getCommuterRoutes = async (req, res) => {
             .populate('b2cPartnerId', 'fullName companyName email')
             .sort({ createdAt: -1 });
 
+        // Fetch all active schedules for these routes
+        const routeIds = routes.map(r => r._id);
+        const schedules = await B2CPartnerSchedule.find({
+            routeId: { $in: routeIds },
+            isActive: true,
+            status: 'Active'
+        });
+        
+        // Create a map of routeId -> schedule
+        const scheduleMap = {};
+        schedules.forEach(s => {
+            if (!scheduleMap[s.routeId.toString()]) {
+                scheduleMap[s.routeId.toString()] = s;
+            }
+        });
+
     const formattedRoutes = routes.map(route => {
+      const schedule = scheduleMap[route._id.toString()];
+      
       // Compute departure and arrival from stop points
       const stops = route.stopPoints || [];
-      const firstStop = stops.length > 0 ? stops.sort((a, b) => a.order - b.order)[0] : null;
-      const lastStop = stops.length > 0 ? stops.sort((a, b) => a.order - b.order)[stops.length - 1] : null;
-      const departureTime = route.startTime || firstStop?.time || 'Not set';
-      const arrivalTime = lastStop?.time || 'Not set';
+      const sortedStops = [...stops].sort((a, b) => a.order - b.order);
+      const firstStop = sortedStops.length > 0 ? sortedStops[0] : null;
+      const lastStop = sortedStops.length > 0 ? sortedStops[sortedStops.length - 1] : null;
+      
+      // Priority: schedule tripTimes > route startTime > stop point times
+      let departureTime = 'Not set';
+      let arrivalTime = 'Not set';
+      
+      if (schedule && schedule.tripTimes && schedule.tripTimes.length > 0) {
+          departureTime = schedule.tripTimes[0].departureTime || 'Not set';
+          arrivalTime = schedule.tripTimes[0].arrivalTime || 'Not set';
+      } else if (route.startTime) {
+          departureTime = route.startTime;
+          arrivalTime = lastStop?.time || 'Not set';
+      } else {
+          departureTime = firstStop?.time || 'Not set';
+          arrivalTime = lastStop?.time || 'Not set';
+      }
       
       // Estimate distance from number of stops
       const numStops = stops.length;
@@ -3513,15 +3546,41 @@ export const getCommuterRoutes = async (req, res) => {
       
       // Estimate duration from departure and arrival times
       let estimatedDuration = 'Not available';
-      if (firstStop?.time && lastStop?.time && firstStop.time !== lastStop.time) {
+      const depTime = departureTime !== 'Not set' ? departureTime : firstStop?.time;
+      const arrTime = arrivalTime !== 'Not set' ? arrivalTime : lastStop?.time;
+      
+      if (depTime && arrTime && depTime !== arrTime) {
         try {
-          const [h1, m1] = firstStop.time.split(':').map(Number);
-          const [h2, m2] = lastStop.time.split(':').map(Number);
-          const diffMinutes = (h2 * 60 + m2) - (h1 * 60 + m1);
-          if (diffMinutes > 0) {
-            const hrs = Math.floor(diffMinutes / 60);
-            const mins = diffMinutes % 60;
-            estimatedDuration = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+          // Parse time strings (support both "HH:MM" and "HH:MM AM/PM" formats)
+          const parseTime = (timeStr) => {
+            if (!timeStr) return null;
+            const cleanTime = timeStr.trim();
+            const amPmMatch = cleanTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+            if (amPmMatch) {
+              let h = parseInt(amPmMatch[1]);
+              const m = parseInt(amPmMatch[2]);
+              const period = amPmMatch[3].toUpperCase();
+              if (period === 'PM' && h !== 12) h += 12;
+              if (period === 'AM' && h === 12) h = 0;
+              return h * 60 + m;
+            }
+            const simpleMatch = cleanTime.match(/^(\d{1,2}):(\d{2})$/);
+            if (simpleMatch) {
+              return parseInt(simpleMatch[1]) * 60 + parseInt(simpleMatch[2]);
+            }
+            return null;
+          };
+          
+          const depMinutes = parseTime(depTime);
+          const arrMinutes = parseTime(arrTime);
+          
+          if (depMinutes !== null && arrMinutes !== null) {
+            const diffMinutes = arrMinutes - depMinutes;
+            if (diffMinutes > 0) {
+              const hrs = Math.floor(diffMinutes / 60);
+              const mins = diffMinutes % 60;
+              estimatedDuration = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+            }
           }
         } catch (e) {
           // Fallback
@@ -3745,6 +3804,17 @@ export const leaveRoute = async (req, res) => {
             'metadata.routeId': routeId,
             status: 'ACTIVE'
         });
+        
+        // Try with top-level routeId field (joinRoute stores it there)
+        if (!membership) {
+            membership = await Transaction.findOne({
+                userId: userId,
+                type: "ROUTE_MEMBERSHIP",
+                category: "COMMUTER_ROUTE",
+                routeId: routeId,
+                status: { $in: ['ACTIVE', 'PENDING'] }
+            });
+        }
         
         // Try with routeId as string match if ObjectId didn't work
         if (!membership) {

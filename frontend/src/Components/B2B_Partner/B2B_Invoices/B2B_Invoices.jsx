@@ -86,7 +86,7 @@ export default function B2B_Invoices() {
               {invoices.map((inv) => (
                 <tr key={inv._id || inv.invoiceNumber}>
                   <td className="b2b-inv-num">{inv.invoiceNumber}</td>
-                  <td>{inv.corporateName || "N/A"}</td>
+                  <td>{inv.corporateName || inv.client || "N/A"}</td>
                   <td className="b2b-inv-num">{inv.contractNumber || "N/A"}</td>
                   <td>{inv.billingPeriod || "N/A"}</td>
                   <td className="b2b-inv-amount">

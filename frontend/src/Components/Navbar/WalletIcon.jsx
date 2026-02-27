@@ -59,7 +59,7 @@ function WalletIcon() {
   };
 
   const formatCurrency = (amount) => {
-    const currency = user?.country === 'KUWAIT' ? 'KWD' : 'AED';
+    const currency = user?.currency || 'KWD';
     return `${currency} ${amount?.toFixed(3) || '0.000'}`;
   };
 

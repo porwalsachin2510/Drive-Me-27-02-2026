@@ -325,7 +325,7 @@ export const getAvailableTrips = async (req, res) => {
 
         // Get employee details
         const employee = await User.findById(employeeId);
-        if (!employee || employee.role !== "CORPORATE_DRIVER" && employee.role !== "CORPORATE") {
+        if (!employee || !["CORPORATE_DRIVER", "CORPORATE", "CORPORATE_EMPLOYEE"].includes(employee.role)) {
             return res.status(403).json({
                 success: false,
                 message: "Unauthorized access"
@@ -334,7 +334,7 @@ export const getAvailableTrips = async (req, res) => {
 
         // Build query
         const query = {
-            corporateId: employee.companyId,
+            corporateId: employee.companyId || employee._id,
             status: "SCHEDULED",
             availableSeats: { $gt: 0 },
             tripDate: { $gte: new Date().setHours(0, 0, 0, 0) }
@@ -357,14 +357,21 @@ export const getAvailableTrips = async (req, res) => {
         }
 
         const trips = await Trip.find(query)
-            .populate('routeId', 'stopPoints estimatedDuration')
-            .populate('vehicleId', 'make model licensePlate')
+            .populate('routeId', 'stopPoints estimatedDuration fromLocation toLocation')
+            .populate('vehicleId', 'make model licensePlate vehicleName')
             .populate('driverId', 'fullName phone')
             .sort({ tripDate: 1, startTime: 1 });
 
+        // Enrich trips with stopPoints from route for pickup selection
+        const enrichedTrips = trips.map(trip => {
+            const tripObj = trip.toObject();
+            tripObj.stopPoints = trip.routeId?.stopPoints || [];
+            return tripObj;
+        });
+
         res.json({
             success: true,
-            data: { trips }
+            data: { trips: enrichedTrips }
         });
 
     } catch (error) {
@@ -387,7 +394,7 @@ export const bookTripSeat = async (req, res) => {
 
         // Get employee details
         const employee = await User.findById(employeeId);
-        if (!employee || employee.role !== "CORPORATE_DRIVER" && employee.role !== "CORPORATE") {
+        if (!employee || !["CORPORATE_DRIVER", "CORPORATE", "CORPORATE_EMPLOYEE"].includes(employee.role)) {
             return res.status(403).json({
                 success: false,
                 message: "Unauthorized access"
@@ -432,13 +439,19 @@ export const bookTripSeat = async (req, res) => {
             });
         }
 
-        // Validate pickup point
-        const stopPoint = trip.routeId.stopPoints.find(sp => sp.location === pickupPoint);
-        if (!stopPoint) {
-            return res.status(400).json({
-                success: false,
-                message: "Invalid pickup point"
-            });
+        // Validate pickup point - check stopPoints if available, or allow fromLocation/toLocation
+        const stopPoints = trip.routeId?.stopPoints || [];
+        const stopPoint = stopPoints.find(sp => sp.location === pickupPoint);
+        
+        // If no stop points on route or pickup matches from/to location, allow it
+        if (!stopPoint && stopPoints.length > 0) {
+            // Check if pickup matches trip's from/to location as fallback
+            if (pickupPoint !== trip.fromLocation && pickupPoint !== trip.toLocation) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid pickup point"
+                });
+            }
         }
 
         // Handle monthly pass
@@ -472,7 +485,7 @@ export const bookTripSeat = async (req, res) => {
             employeeId,
             seatNumber,
             pickupPoint,
-            pickupTime: stopPoint.time,
+            pickupTime: stopPoint?.time || pickupTime || trip.startTime,
             bookingStatus: "CONFIRMED",
             bookedAt: new Date(),
             monthlyPass: monthlyPass?._id
@@ -492,15 +505,17 @@ export const bookTripSeat = async (req, res) => {
         await trip.save();
 
         // Notify driver about new booking
-        io.to(`driver-${trip.driverId}`).emit('passenger-booked', {
-            tripId: trip._id,
-            passenger: {
-                employeeId,
-                seatNumber,
-                pickupPoint,
-                pickupTime: stopPoint.time
-            }
-        });
+        if (trip.driverId) {
+            io.to(`driver-${trip.driverId}`).emit('passenger-booked', {
+                tripId: trip._id,
+                passenger: {
+                    employeeId,
+                    seatNumber,
+                    pickupPoint,
+                    pickupTime: stopPoint?.time || pickupTime || trip.startTime
+                }
+            });
+        }
 
         res.json({
             success: true,

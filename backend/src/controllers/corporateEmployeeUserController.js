@@ -184,7 +184,14 @@ export const getEmployeeDashboard = async (req, res) => {
             driverContact: trip.driverId?.whatsappNumber || vehicleInfo?.driverContact || 'Not available',
             totalSeats: trip.totalSeats,
             availableSeats: trip.availableSeats,
-            bookedSeats: trip.bookedSeats
+            bookedSeats: trip.bookedSeats,
+            stopPoints: trip.routeId?.stopPoints || [],
+            routeId: trip.routeId ? {
+                _id: trip.routeId._id,
+                fromLocation: trip.routeId.fromLocation,
+                toLocation: trip.routeId.toLocation,
+                stopPoints: trip.routeId.stopPoints || []
+            } : null
         }));
 
         // Build route info for response
@@ -370,7 +377,7 @@ export const getAssignedRoute = async (req, res) => {
 export const manageBooking = async (req, res) => {
     try {
         const userId = req.userId;
-        const { action, dates, reason } = req.body;
+        const { action, dates, reason, tripId } = req.body;
 
         const employee = await CorporateEmployee.findOne({ userId });
 
@@ -381,10 +388,55 @@ export const manageBooking = async (req, res) => {
             });
         }
 
+        // Handle single trip cancellation (from EmployeeTripBooking cancel button)
+        if (action === "cancel" && tripId && !dates) {
+            const trip = await Trip.findById(tripId);
+            if (!trip) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Trip not found"
+                });
+            }
+
+            // Find and remove passenger
+            const passengerIndex = trip.passengers.findIndex(p =>
+                p.employeeId && p.employeeId.toString() === userId.toString()
+            );
+
+            if (passengerIndex === -1) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Booking not found for this employee"
+                });
+            }
+
+            // Remove passenger and restore seat
+            trip.passengers.splice(passengerIndex, 1);
+            trip.availableSeats = (trip.availableSeats || 0) + 1;
+            trip.bookedSeats = Math.max((trip.bookedSeats || 1) - 1, 0);
+            await trip.save();
+
+            return res.status(200).json({
+                success: true,
+                message: "Booking cancelled successfully",
+                data: { tripId }
+            });
+        }
+
+        // Validate dates is an array for bulk operations
+        const datesArray = Array.isArray(dates) ? dates : (dates ? [dates] : []);
+
+        if (datesArray.length === 0 && action !== "cancel") {
+            return res.status(400).json({
+                success: false,
+                message: "No dates provided"
+            });
+        }
+
         if (action === "book") {
             // Book specific days
             const bookings = [];
-            for (const date of dates) {
+            for (const date of datesArray) {
                 const booking = await createEmployeeBooking(employee, date);
                 bookings.push(booking);
             }
@@ -398,7 +450,7 @@ export const manageBooking = async (req, res) => {
         } else if (action === "cancel") {
             // Cancel specific days
             const cancellations = [];
-            for (const date of dates) {
+            for (const date of datesArray) {
                 const cancellation = await cancelEmployeeBooking(employee, date, reason);
                 cancellations.push(cancellation);
             }

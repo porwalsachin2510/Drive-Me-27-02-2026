@@ -100,18 +100,19 @@ export const getWalletBalance = async (req, res) => {
         // Find or create wallet for user
         let wallet = await Wallet.findOne({ userId })
         if (!wallet) {
-            // Detect currency based on user location or default to AED
-            let userCurrency = "AED"
+            // Detect currency based on user location or default to KWD
+            let userCurrency = "KWD"
             if (user.country) {
                 const countryCurrencyMap = {
                     "UAE": "AED",
                     "KW": "KWD", 
+                    "KUWAIT": "KWD",
                     "SA": "SAR",
                     "BH": "BHD",
                     "OM": "OMR",
                     "QA": "QAR"
                 }
-                userCurrency = countryCurrencyMap[user.country] || "AED"
+                userCurrency = countryCurrencyMap[user.country] || "KWD"
             }
             
             wallet = new Wallet({

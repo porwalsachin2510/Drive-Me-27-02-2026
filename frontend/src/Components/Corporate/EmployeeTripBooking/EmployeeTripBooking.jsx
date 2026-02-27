@@ -183,25 +183,24 @@ function EmployeeTripBooking() {
     }
 
     try {
-      // Try corporate trip cancel first (DELETE /api/trips/:tripId/cancel)
+      // Use the corporate employee booking management endpoint
+      await api.post("/corporate-employee-users/booking", {
+        action: "cancel",
+        tripId: tripId
+      });
+      fetchMyBookings();
+      alert("Booking cancelled successfully!");
+    } catch (error) {
+      console.error("Error canceling booking:", error);
+      // Fallback: try the trip cancel endpoint
       try {
         await api.delete(`/trips/${tripId}/cancel`);
         fetchMyBookings();
         alert("Booking cancelled successfully!");
-        return;
-      } catch (err) {
-        // If trip cancel fails with 404, try B2C booking cancel
-        if (err.response?.status === 404) {
-          await api.put(`/bookings/${tripId}/cancel`);
-          fetchMyBookings();
-          alert("Booking cancelled successfully!");
-          return;
-        }
-        throw err;
+      } catch (fallbackError) {
+        console.error("Fallback cancel also failed:", fallbackError);
+        alert(fallbackError.response?.data?.message || error.response?.data?.message || "Failed to cancel booking");
       }
-    } catch (error) {
-      console.error("Error canceling booking:", error);
-      alert(error.response?.data?.message || "Failed to cancel booking");
     }
   };
 

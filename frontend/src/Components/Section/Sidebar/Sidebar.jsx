@@ -24,23 +24,29 @@ export default function Sidebar() {
       setProfileData(profileResponse.data.profile);
       
       // Fetch wallet data
-      const walletResponse = await api.get('/wallet/balance');
-      setWalletData(walletResponse.data.wallet);
+      try {
+        const walletResponse = await api.get('/wallet/balance');
+        setWalletData(walletResponse.data.data?.wallet || walletResponse.data.wallet || { balance: 0 });
+      } catch (walletError) {
+        console.error("Error fetching wallet:", walletError);
+        setWalletData({ balance: 0 });
+      }
       
       // Fetch real stats from backend
       try {
         const statsResponse = await api.get('/commuter/stats');
+        const statsData = statsResponse.data.stats || statsResponse.data.data?.stats || {};
         setStats({
-          totalRides: statsResponse.data.stats?.totalRides || 0,
-          savedCO2: statsResponse.data.stats?.savedCO2 || "0kg",
-          isPremium: statsResponse.data.stats?.isPremium || false
+          totalRides: statsData.totalRides || 0,
+          savedCO2: statsData.savedCO2 || "0.0kg",
+          isPremium: statsData.isPremium || false
         });
       } catch (statsError) {
         console.error("Error fetching stats:", statsError);
         setStats({
           totalRides: 0,
-          savedCO2: "0kg",
-          isPremium: profileResponse.data.profile?.membershipType === 'premium'
+          savedCO2: "0.0kg",
+          isPremium: false
         });
       }
       

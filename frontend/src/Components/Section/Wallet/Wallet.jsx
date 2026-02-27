@@ -18,7 +18,7 @@ export default function Wallet() {
     try {
       setLoading(true);
       const response = await api.get('/wallet/balance');
-      setWalletData(response.data.data?.wallet || response.data.wallet);
+      setWalletData(response.data.data?.wallet || response.data.wallet || { balance: 0 });
       
       const transactionsResponse = await api.get('/wallet/transactions');
       setTransactions(transactionsResponse.data.data?.transactions || transactionsResponse.data.transactions || []);

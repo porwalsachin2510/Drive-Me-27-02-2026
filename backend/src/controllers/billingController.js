@@ -208,18 +208,38 @@ export const getB2BPartnerInvoices = async (req, res) => {
 
         const invoices = [];
         for (const contract of contracts) {
-            const monthlyValue = contract.financials?.monthlyValue || contract.financials?.totalValue || 0;
+            const monthlyValue = contract.financials?.monthlyValue || contract.financials?.totalValue || contract.financials?.estimatedValue || 0;
+            const currency = contract.financials?.currency || 'KWD';
+            const corporateName = contract.corporateOwnerId?.companyName || contract.corporateOwnerId?.fullName || 'N/A';
+
+            // Compute billing period from contract dates
+            const contractStart = contract.startDate || contract.createdAt;
+            const contractEnd = contract.endDate;
+            let contractPeriodStr = '';
+            if (contractStart && contractEnd) {
+                const startStr = new Date(contractStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                const endStr = new Date(contractEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                contractPeriodStr = `${startStr} - ${endStr}`;
+            }
 
             if (contract.paymentHistory && contract.paymentHistory.length > 0) {
                 contract.paymentHistory.forEach((payment, idx) => {
+                    const payDate = payment.paidDate || payment.createdAt;
+                    const payMonth = payDate ? new Date(payDate) : new Date();
+                    const billingPeriod = `${payMonth.toLocaleString('default', { month: 'short' })} ${payMonth.getFullYear()}`;
+                    
                     invoices.push({
                         _id: `${contract._id}-${idx}`,
                         invoiceNumber: `B2B-INV-${contract.contractNumber || contract._id.toString().slice(-6)}-${idx + 1}`,
                         contractId: contract._id,
                         contractNumber: contract.contractNumber,
-                        client: contract.corporateOwnerId?.companyName || contract.corporateOwnerId?.fullName,
+                        client: corporateName,
+                        corporateName: corporateName,
                         amount: payment.amount,
-                        date: payment.paidDate || payment.createdAt,
+                        currency: currency,
+                        billingPeriod: billingPeriod,
+                        date: payDate,
+                        createdAt: payDate,
                         status: payment.status || "PAID",
                         method: payment.method || "Online",
                     });
@@ -227,14 +247,21 @@ export const getB2BPartnerInvoices = async (req, res) => {
             }
 
             // Current month invoice
+            const now = new Date();
+            const currentBillingPeriod = `${now.toLocaleString('default', { month: 'short' })} ${now.getFullYear()}`;
+            
             invoices.push({
                 _id: `${contract._id}-current`,
                 invoiceNumber: `B2B-INV-${contract.contractNumber || contract._id.toString().slice(-6)}-CUR`,
                 contractId: contract._id,
                 contractNumber: contract.contractNumber,
-                client: contract.corporateOwnerId?.companyName || contract.corporateOwnerId?.fullName,
+                client: corporateName,
+                corporateName: corporateName,
                 amount: monthlyValue,
-                date: new Date(),
+                currency: currency,
+                billingPeriod: currentBillingPeriod,
+                date: now,
+                createdAt: now,
                 status: contract.status === "ACTIVE" ? "PENDING" : "DRAFT"
             });
         }
