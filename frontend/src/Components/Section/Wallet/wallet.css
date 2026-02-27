@@ -1,0 +1,364 @@
+.wallet-section {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.wallet-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 25px;
+}
+
+.balance-card {
+  background: linear-gradient(135deg, #1a3a52 0%, #2a5a7a 100%);
+  border-radius: 12px;
+  padding: 30px;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.balance-card::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 300px;
+  height: 300px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+}
+
+.balance-label {
+  font-size: 13px;
+  opacity: 0.9;
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
+}
+
+.balance-amount {
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.balance-amount span {
+  font-size: 16px;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: all 0.3s ease;
+}
+
+.copy-btn:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.payment-methods {
+  background-color: white;
+  border-radius: 12px;
+  padding: 25px;
+  border: 1px solid #e5e7eb;
+}
+
+.payment-methods h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 20px;
+}
+
+.payment-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.payment-icon {
+  font-size: 24px;
+}
+
+.payment-info {
+  flex: 1;
+}
+
+.payment-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+}
+
+.payment-expire {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.edit-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+.edit-btn:hover {
+  color: #1a1a1a;
+}
+
+.add-card-btn {
+  width: 100%;
+  border: 2px dashed #d1d5db;
+  background-color: #f9fafb;
+  padding: 15px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+  transition: all 0.3s ease;
+}
+
+.add-card-btn:hover {
+  border-color: #00b074;
+  background-color: #f0fdf4;
+}
+
+.transaction-history {
+  background-color: white;
+  border-radius: 12px;
+  padding: 25px;
+  border: 1px solid #e5e7eb;
+}
+
+.transaction-history h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 20px;
+}
+
+.transactions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.transaction-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  border-left: 3px solid #e5e7eb;
+}
+
+.tx-icon {
+  font-size: 18px;
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
+  border-radius: 6px;
+}
+
+.tx-info {
+  flex: 1;
+}
+
+.tx-type {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+}
+
+.tx-date {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.tx-amount {
+  text-align: right;
+}
+
+.amount {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.amount.positive {
+  color: #00b074;
+}
+
+.amount.negative {
+  color: #ef4444;
+}
+
+.tx-status {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Tablet */
+@media (max-width: 1199px) {
+  .wallet-container {
+    grid-template-columns: 1fr;
+  }
+
+  .balance-card {
+    padding: 25px;
+  }
+
+  .balance-amount {
+    font-size: 28px;
+  }
+
+  .payment-methods,
+  .transaction-history {
+    padding: 20px;
+  }
+
+  .payment-methods h3,
+  .transaction-history h3 {
+    font-size: 15px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 767px) {
+  .wallet-section {
+    gap: 20px;
+  }
+
+  .wallet-container {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .balance-card {
+    padding: 20px;
+  }
+
+  .balance-label {
+    font-size: 12px;
+  }
+
+  .balance-amount {
+    font-size: 24px;
+  }
+
+  .copy-btn {
+    width: 35px;
+    height: 35px;
+    font-size: 16px;
+  }
+
+  .payment-methods,
+  .transaction-history {
+    padding: 15px;
+  }
+
+  .payment-methods h3,
+  .transaction-history h3 {
+    font-size: 14px;
+    margin-bottom: 15px;
+  }
+
+  .payment-item {
+    padding: 12px;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .payment-icon {
+    font-size: 20px;
+  }
+
+  .payment-name {
+    font-size: 13px;
+  }
+
+  .payment-expire {
+    font-size: 11px;
+  }
+
+  .edit-btn {
+    font-size: 12px;
+  }
+
+  .transaction-item {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .tx-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+  }
+
+  .tx-type {
+    font-size: 13px;
+  }
+
+  .tx-date {
+    font-size: 11px;
+  }
+
+  .amount {
+    font-size: 13px;
+  }
+
+  .tx-status {
+    font-size: 11px;
+  }
+}
+
+/* Scrollbar styling */
+.transactions-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.transactions-list::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.transactions-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+.transactions-list::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

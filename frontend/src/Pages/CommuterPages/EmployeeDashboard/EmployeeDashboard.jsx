@@ -1,0 +1,438 @@
+import React, { useState, useEffect, useCallback } from "react";
+import { useSelector } from "react-redux";
+import api from "../../../utils/api";
+import Navbar from "../../../Components/Navbar/Navbar";
+import Footer from "../../../Components/Footer/Footer";
+import EmployeeFeedback from "../../../Components/CorporateEmployee/EmployeeFeedback/EmployeeFeedback";
+import "./employeedashboard.css";
+
+export default function EmployeeDashboard() {
+  const user = useSelector((state) => state.auth.user);
+  const [dashTab, setDashTab] = useState("trip-info");
+  const [navTab, setNavTab] = useState("employee");
+  const [tripInfo, setTripInfo] = useState(null);
+  const [myBookings, setMyBookings] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  // eslint-disable-next-line no-unused-vars
+  const [error, setError] = useState(null);
+
+  // Fetch employee's assigned route/trip info
+  useEffect(() => {
+    fetchTripInfo();
+    fetchMyBookings();
+    fetchTravelHistory();
+    fetchNotifications();
+  }, [user?.id]);
+
+  const fetchTripInfo = async () => {
+    try {
+      const response = await api.get("/corporate-employee-users/route");
+      if (response.data?.data) {
+        setTripInfo(response.data.data);
+      }
+    } catch (err) {
+      console.error("Error fetching trip info:", err);
+    }
+  };
+
+  const fetchMyBookings = async () => {
+    try {
+      const response = await api.get("/corporate-employee-users/dashboard");
+      const dashboardData = response.data?.data;
+      setMyBookings(dashboardData?.upcomingTrips || dashboardData?.bookings || []);
+    } catch (err) {
+      console.error("Error fetching bookings:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchTravelHistory = async () => {
+    try {
+      const response = await api.get("/corporate-employee-users/dashboard");
+      const dashboardData = response.data?.data;
+      setHistory(dashboardData?.travelHistory || dashboardData?.recentTrips || []);
+    } catch (err) {
+      console.error("Error fetching history:", err);
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      if (!user?._id) return;
+      const response = await api.get(`/notifications/user/${user._id}`);
+      setNotifications(response.data?.data?.notifications || response.data?.notifications || []);
+    } catch (err) {
+      console.error("Error fetching notifications:", err);
+    }
+  };
+
+  const handleCancelBooking = async (bookingId) => {
+    try {
+      await api.post("/corporate-employee-users/booking", { action: "cancel", bookingId });
+      setMyBookings(myBookings.filter((b) => b._id !== bookingId));
+    } catch (err) {
+      console.error("Error canceling booking:", err);
+    }
+  };
+
+  const handleMarkNotTraveling = async () => {
+    try {
+      await api.post("/corporate-employee-users/not-traveling-today", {
+        reason: "Personal",
+      });
+      fetchTripInfo();
+      fetchMyBookings();
+    } catch (err) {
+      console.error("Error marking not traveling:", err);
+    }
+  };
+
+  const handleRateTrip = async (tripId, rating, feedback) => {
+    try {
+      await api.post("/corporate-employee-users/rate-trip", { tripId, rating, feedback });
+      fetchTravelHistory();
+    } catch (err) {
+      console.error("Error rating trip:", err);
+    }
+  };
+
+  const handleRequestRouteChange = async (reason, preferredRoute) => {
+    try {
+      await api.post("/corporate-employee-users/request-route-change", { reason, preferredRoute });
+      alert("Route change request submitted successfully");
+    } catch (err) {
+      console.error("Error requesting route change:", err);
+    }
+  };
+
+  const renderContent = () => {
+    switch (dashTab) {
+      case "trip-info":
+        return <TripInfoTab tripInfo={tripInfo} loading={loading} onMarkNotTraveling={handleMarkNotTraveling} />;
+      case "my-bookings":
+        return (
+          <MyBookingsTab
+            bookings={myBookings}
+            onCancel={handleCancelBooking}
+            loading={loading}
+          />
+        );
+      case "history":
+        return <HistoryTab history={history} loading={loading} onRate={handleRateTrip} />;
+      case "notifications":
+        return (
+          <NotificationsTab notifications={notifications} loading={loading} />
+        );
+      case "feedback":
+        return <EmployeeFeedback />;
+      case "route-change":
+        return <RouteChangeTab onSubmit={handleRequestRouteChange} />;
+      default:
+        return <TripInfoTab tripInfo={tripInfo} loading={loading} onMarkNotTraveling={handleMarkNotTraveling} />;
+    }
+  };
+
+  return (
+    <>
+    <Navbar activeTab={navTab} setActiveTab={setNavTab} />
+    <div className="employee-dashboard">
+      <div className="dashboard-header">
+        <h1>Welcome, {user?.fullName || "Employee"}</h1>
+        <p className="subtitle">Corporate Employee Transportation Dashboard</p>
+      </div>
+
+      <div className="dashboard-tabs">
+        <button
+          className={`tab-btn ${dashTab === "trip-info" ? "active" : ""}`}
+          onClick={() => setDashTab("trip-info")}
+        >
+          Trip Info
+        </button>
+        <button
+          className={`tab-btn ${dashTab === "my-bookings" ? "active" : ""}`}
+          onClick={() => setDashTab("my-bookings")}
+        >
+          My Bookings
+        </button>
+        <button
+          className={`tab-btn ${dashTab === "history" ? "active" : ""}`}
+          onClick={() => setDashTab("history")}
+        >
+          History
+        </button>
+        <button
+          className={`tab-btn ${dashTab === "notifications" ? "active" : ""}`}
+          onClick={() => setDashTab("notifications")}
+        >
+          Notifications
+        </button>
+        <button
+          className={`tab-btn ${dashTab === "feedback" ? "active" : ""}`}
+          onClick={() => setDashTab("feedback")}
+        >
+          Rate & Feedback
+        </button>
+        <button
+          className={`tab-btn ${dashTab === "route-change" ? "active" : ""}`}
+          onClick={() => setDashTab("route-change")}
+        >
+          Route Change
+        </button>
+      </div>
+
+      <div className="dashboard-content">{renderContent()}</div>
+    </div>
+    <Footer />
+    </>
+  );
+}
+
+function TripInfoTab({ tripInfo, loading, onMarkNotTraveling }) {
+  if (loading)
+    return <div className="loading">Loading trip information...</div>;
+  if (!tripInfo)
+    return <div className="empty-state">No trip information available</div>;
+
+  return (
+    <div className="tab-content">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h2>Your Assigned Route</h2>
+        <button className="cancel-btn" onClick={onMarkNotTraveling}>
+          Not Traveling Today
+        </button>
+      </div>
+      <div className="trip-info-cards">
+        <div className="info-card">
+          <label>Route</label>
+          <p>
+            {tripInfo.route?.fromLocation} → {tripInfo.route?.toLocation}
+          </p>
+        </div>
+        <div className="info-card">
+          <label>Vehicle</label>
+          <p>
+            {tripInfo.vehicle?.make} {tripInfo.vehicle?.model}
+          </p>
+          <small>{tripInfo.vehicle?.licensePlate}</small>
+        </div>
+        <div className="info-card">
+          <label>Driver</label>
+          <p>{tripInfo.driver?.fullName}</p>
+          <small>{tripInfo.driver?.phone}</small>
+        </div>
+        <div className="info-card">
+          <label>Pickup Stop</label>
+          <p>{tripInfo.pickupStop || "Not assigned"}</p>
+        </div>
+        <div className="info-card">
+          <label>Dropoff Stop</label>
+          <p>{tripInfo.dropoffStop || "Not assigned"}</p>
+        </div>
+        <div className="info-card">
+          <label>Shift Type</label>
+          <p>{tripInfo.shiftType || "Full Day"}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MyBookingsTab({ bookings, onCancel, loading }) {
+  if (loading) return <div className="loading">Loading bookings...</div>;
+
+  return (
+    <div className="tab-content">
+      <h2>My Bookings</h2>
+      {bookings.length === 0 ? (
+        <div className="empty-state">No bookings yet</div>
+      ) : (
+        <div className="bookings-list">
+          {bookings.map((booking) => (
+            <div key={booking._id} className="booking-card">
+              <div className="booking-info">
+                <h3>
+                  {booking.fromLocation} → {booking.toLocation}
+                </h3>
+                <p className="date">
+                  {new Date(booking.tripDate).toLocaleDateString()} at{" "}
+                  {booking.startTime}
+                </p>
+                <span className={`status ${booking.status.toLowerCase()}`}>
+                  {booking.status}
+                </span>
+              </div>
+              <div className="booking-actions">
+                {booking.status !== "COMPLETED" && (
+                  <button
+                    className="cancel-btn"
+                    onClick={() => onCancel(booking._id)}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HistoryTab({ history, loading, onRate }) {
+  const [ratingTrip, setRatingTrip] = useState(null);
+  const [rating, setRating] = useState(5);
+  const [feedback, setFeedback] = useState("");
+
+  if (loading) return <div className="loading">Loading history...</div>;
+
+  const handleSubmitRating = (tripId) => {
+    onRate(tripId, rating, feedback);
+    setRatingTrip(null);
+    setRating(5);
+    setFeedback("");
+  };
+
+  return (
+    <div className="tab-content">
+      <h2>Travel History</h2>
+      {history.length === 0 ? (
+        <div className="empty-state">No travel history</div>
+      ) : (
+        <div className="history-list">
+          {history.map((trip) => (
+            <div key={trip._id} className="history-item">
+              <div className="history-date">
+                {new Date(trip.date || trip.travelDate).toLocaleDateString()}
+              </div>
+              <div className="history-route">
+                {trip.fromLocation || trip.route?.fromLocation} → {trip.toLocation || trip.route?.toLocation}
+              </div>
+              <div className="history-status">{trip.attendance || trip.status}</div>
+              {trip.status === "COMPLETED" && !trip.rating && (
+                <button className="tab-btn" onClick={() => setRatingTrip(trip._id)}>
+                  Rate Trip
+                </button>
+              )}
+              {ratingTrip === trip._id && (
+                <div className="rating-form" style={{ marginTop: "8px", padding: "12px", background: "#f5f5f5", borderRadius: "8px" }}>
+                  <div style={{ display: "flex", gap: "4px", marginBottom: "8px" }}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => setRating(star)}
+                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: "20px", color: star <= rating ? "#f59e0b" : "#d1d5db" }}
+                      >
+                        *
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    placeholder="Your feedback..."
+                    value={feedback}
+                    onChange={(e) => setFeedback(e.target.value)}
+                    style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ccc", marginBottom: "8px", resize: "vertical" }}
+                  />
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button className="tab-btn active" onClick={() => handleSubmitRating(trip._id)}>Submit</button>
+                    <button className="cancel-btn" onClick={() => setRatingTrip(null)}>Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NotificationsTab({ notifications, loading }) {
+  if (loading) return <div className="loading">Loading notifications...</div>;
+
+  return (
+    <div className="tab-content">
+      <h2>Notifications</h2>
+      {notifications.length === 0 ? (
+        <div className="empty-state">No notifications</div>
+      ) : (
+        <div className="notifications-list">
+          {notifications.map((notif) => (
+            <div
+              key={notif._id}
+              className={`notification-item ${!notif.isRead ? "unread" : ""}`}
+            >
+              <div className="notif-title">{notif.title}</div>
+              <div className="notif-message">{notif.message}</div>
+              <div className="notif-time">
+                {new Date(notif.createdAt).toLocaleString()}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RouteChangeTab({ onSubmit }) {
+  const [reason, setReason] = useState("");
+  const [preferredRoute, setPreferredRoute] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!reason.trim()) return;
+    onSubmit(reason, preferredRoute);
+    setSubmitted(true);
+    setReason("");
+    setPreferredRoute("");
+    setTimeout(() => setSubmitted(false), 3000);
+  };
+
+  return (
+    <div className="tab-content">
+      <h2>Request Route Change</h2>
+      <p style={{ color: "#666", marginBottom: "16px" }}>
+        If your pickup/dropoff location has changed, you can request a route change.
+      </p>
+      {submitted && (
+        <div style={{ padding: "12px", background: "#d4edda", color: "#155724", borderRadius: "8px", marginBottom: "16px" }}>
+          Route change request submitted successfully!
+        </div>
+      )}
+      <form onSubmit={handleSubmit} style={{ maxWidth: "500px" }}>
+        <div style={{ marginBottom: "16px" }}>
+          <label style={{ display: "block", fontWeight: "600", marginBottom: "4px" }}>
+            Reason for change *
+          </label>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Explain why you need a route change..."
+            required
+            style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #ccc", minHeight: "100px", resize: "vertical" }}
+          />
+        </div>
+        <div style={{ marginBottom: "16px" }}>
+          <label style={{ display: "block", fontWeight: "600", marginBottom: "4px" }}>
+            Preferred new route/area (optional)
+          </label>
+          <input
+            type="text"
+            value={preferredRoute}
+            onChange={(e) => setPreferredRoute(e.target.value)}
+            placeholder="e.g., Sector 62 Noida"
+            style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #ccc" }}
+          />
+        </div>
+        <button type="submit" className="tab-btn active" style={{ padding: "10px 24px" }}>
+          Submit Request
+        </button>
+      </form>
+    </div>
+  );
+}

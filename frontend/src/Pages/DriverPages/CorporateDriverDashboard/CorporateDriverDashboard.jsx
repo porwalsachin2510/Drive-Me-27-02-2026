@@ -1,0 +1,599 @@
+"use client";
+
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { logout } from "../../../Redux/slices/authSlice";
+import { useSocket } from "../../../hooks/useSocket";
+import api from "../../../utils/api";
+import "./CorporateDriverDashboard.css";
+
+export default function CorporateDriverDashboard() {
+  const { user } = useSelector((state) => state.auth);
+  const socket = useSocket();
+
+  const [bookings, setBookings] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [liveLocation, setLiveLocation] = useState(null);
+  const [activeBookingTab, setActiveBookingTab] = useState("confirmed");
+  const [activeMainTab, setActiveMainTab] = useState("bookings");
+  const [isSharingLocation, setIsSharingLocation] = useState(false);
+  const [activeTrip, setActiveTrip] = useState(null);
+  const locationIntervalRef = useRef(null);
+
+   const navigate = useNavigate();
+   const dispatch = useDispatch();
+
+   const handleLogout = async () => {
+     try {
+       const token = localStorage.getItem("token");
+
+       if (!token) {
+         console.log("No token found, redirecting to login");
+         navigate("/login");
+         return;
+       }
+
+       dispatch(logout());
+
+       // Call backend logout endpoint to clear cookies and session
+       await api.post(
+         "/auth/logout",
+         {},
+         {
+           headers: {
+             Authorization: `Bearer ${token}`,
+           },
+           withCredentials: true,
+         },
+       );
+
+       // Clear frontend storage
+       localStorage.removeItem("token");
+       localStorage.removeItem("user");
+
+       console.log("User logged out successfully");
+
+       // Redirect to login page
+       navigate("/login");
+     } catch (err) {
+       console.error("Logout error:", err);
+
+       localStorage.removeItem("token");
+       localStorage.removeItem("user");
+
+       // Redirect to login regardless of error
+       navigate("/login");
+     }
+   };
+
+  const updateLocation = useCallback(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const location = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            driverId: user._id,
+            timestamp: new Date().toISOString(),
+            driverType: "CORPORATE",
+          };
+
+          if (socket && socket.socket) {
+            socket.socket.emit("update-location", location);
+          }
+
+          setLiveLocation(location);
+          console.log("📍 Location updated:", location);
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0,
+        },
+      );
+    }
+  }, [socket, user._id]);
+
+  const startAutomaticLocationSharing = useCallback(() => {
+    if (isSharingLocation) return;
+
+    setIsSharingLocation(true);
+    console.log("🚗 Starting automatic location sharing for Corporate Driver");
+
+    updateLocation();
+
+    locationIntervalRef.current = setInterval(() => {
+      updateLocation();
+    }, 5000);
+
+    if (socket && socket.socket) {
+      socket.socket.emit("join-driver-room", user._id);
+    }
+  }, [isSharingLocation, socket, user._id, updateLocation]);
+
+  const stopAutomaticLocationSharing = useCallback(() => {
+    if (!isSharingLocation) return;
+
+    setIsSharingLocation(false);
+    console.log("🛑 Stopping automatic location sharing");
+
+    if (locationIntervalRef.current) {
+      clearInterval(locationIntervalRef.current);
+      locationIntervalRef.current = null;
+    }
+
+    setActiveTrip(null);
+  }, [isSharingLocation]);
+
+  const fetchCorporateBookings = useCallback(async () => {
+    try {
+      const response = await api.get(`/bookings/corporate/driver/${user._id}`);
+      if (response.data.success) {
+        setBookings(response.data.bookings);
+
+        const inProgressTrips = response.data.bookings.filter(
+          (booking) => booking.bookingStatus === "IN_PROGRESS",
+        );
+
+        const confirmedTrips = response.data.bookings.filter(
+          (booking) => booking.bookingStatus === "CONFIRMED",
+        );
+
+        if (
+          (inProgressTrips.length > 0 || confirmedTrips.length > 0) &&
+          !isSharingLocation
+        ) {
+          startAutomaticLocationSharing();
+        }
+
+        if (inProgressTrips.length > 0) {
+          setActiveTrip(inProgressTrips[0]);
+        } else if (confirmedTrips.length > 0) {
+          setActiveTrip(confirmedTrips[0]);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching corporate bookings:", error);
+    }
+  }, [user._id, isSharingLocation, startAutomaticLocationSharing]);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      if (!user?._id) return;
+      const response = await api.get(`/notifications/user/${user._id}`);
+      const data = response.data?.data?.notifications || response.data?.notifications || [];
+      setNotifications(data);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    }
+  }, [user?._id]);
+
+  const startTrip = async (bookingId) => {
+    try {
+      const response = await api.put(`/bookings/corporate/${bookingId}/start`);
+      if (response.data.success) {
+        setBookings((prev) =>
+          prev.map((booking) =>
+            booking._id === bookingId
+              ? {
+                  ...booking,
+                  bookingStatus: "IN_PROGRESS",
+                  startedAt: new Date(),
+                }
+              : booking,
+          ),
+        );
+
+        setActiveTrip(bookings.find((b) => b._id === bookingId));
+
+        if (!isSharingLocation) {
+          startAutomaticLocationSharing();
+        }
+
+        console.log("🚀 Trip started:", bookingId);
+      }
+    } catch (error) {
+      console.error("Error starting trip:", error);
+    }
+  };
+
+  const completeTrip = async (bookingId) => {
+    try {
+      const response = await api.put(
+        `/bookings/corporate/${bookingId}/complete`,
+      );
+      if (response.data.success) {
+        setBookings((prev) =>
+          prev.map((booking) =>
+            booking._id === bookingId
+              ? {
+                  ...booking,
+                  bookingStatus: "COMPLETED",
+                  completedAt: new Date(),
+                }
+              : booking,
+          ),
+        );
+
+        const remainingTrips = bookings.filter(
+          (booking) =>
+            booking._id !== bookingId &&
+            (booking.bookingStatus === "CONFIRMED" ||
+              booking.bookingStatus === "IN_PROGRESS"),
+        );
+
+        if (remainingTrips.length === 0) {
+          stopAutomaticLocationSharing();
+        } else {
+          setActiveTrip(remainingTrips[0]);
+        }
+
+        console.log("✅ Trip completed:", bookingId);
+      }
+    } catch (error) {
+      console.error("Error completing trip:", error);
+    }
+  };
+
+  useEffect(() => {
+    // Use setTimeout to avoid cascading renders
+    const timer = setTimeout(() => {
+      fetchCorporateBookings();
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [fetchCorporateBookings]);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  useEffect(() => {
+    if (!socket || !socket.socket) return;
+
+    // Listen for new bookings
+    socket.socket.on("new-corporate-booking", (booking) => {
+      console.log("New corporate booking received:", booking);
+      setBookings((prev) => [...prev, booking]);
+      fetchNotifications();
+
+      // Start location sharing for new booking
+      if (!isSharingLocation) {
+        startAutomaticLocationSharing();
+      }
+    });
+
+    // Listen for booking updates
+    socket.socket.on("corporate-booking-updated", (booking) => {
+      console.log("Corporate booking updated:", booking);
+      setBookings((prev) =>
+        prev.map((b) => (b._id === booking._id ? booking : b)),
+      );
+      fetchNotifications();
+    });
+
+    // Listen for location updates
+    socket.socket.on("location-update", (location) => {
+      console.log("📍 Location update received:", location);
+    });
+
+    return () => {
+      socket.socket.off("new-corporate-booking");
+      socket.socket.off("corporate-booking-updated");
+      socket.socket.off("location-update");
+    };
+  }, [socket, isSharingLocation, startAutomaticLocationSharing]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (locationIntervalRef.current) {
+        clearInterval(locationIntervalRef.current);
+      }
+    };
+  }, []);
+
+  const filteredBookings = bookings.filter((booking) => {
+    switch (activeBookingTab) {
+      case "confirmed":
+        return booking.bookingStatus === "CONFIRMED";
+      case "in-progress":
+        return booking.bookingStatus === "IN_PROGRESS";
+      case "completed":
+        return booking.bookingStatus === "COMPLETED";
+      default:
+        return false;
+    }
+  });
+
+  
+  
+  return (
+    <div className="corporate-driver-dashboard">
+      <button className="b2b-logout-btn" onClick={handleLogout}>
+        Log Out
+      </button>
+      <div className="dashboard-header">
+        <h1>Corporate Driver Dashboard</h1>
+        <div className="driver-info">
+          <span>Welcome, {user?.fullName}</span>
+          <div
+            className={`location-status ${isSharingLocation ? "active" : ""}`}
+          >
+            📍 {isSharingLocation ? "Sharing Live" : "Not Sharing"}
+          </div>
+        </div>
+      </div>
+
+      <div className="dashboard-tabs">
+        <button
+          className={`tab ${activeMainTab === "bookings" ? "active" : ""}`}
+          onClick={() => setActiveMainTab("bookings")}
+        >
+          Bookings
+        </button>
+        <button
+          className={`tab ${activeMainTab === "notifications" ? "active" : ""}`}
+          onClick={() => setActiveMainTab("notifications")}
+        >
+          Notifications
+        </button>
+        <button
+          className={`tab ${activeMainTab === "location" ? "active" : ""}`}
+          onClick={() => setActiveMainTab("location")}
+        >
+          Live Location
+        </button>
+      </div>
+
+      <div className="dashboard-content">
+        {activeMainTab === "bookings" && (
+          <div className="bookings-section">
+            <div className="booking-tabs">
+              <button
+                className={`booking-tab ${activeBookingTab === "confirmed" ? "active" : ""}`}
+                onClick={() => setActiveBookingTab("confirmed")}
+              >
+                Confirmed Bookings
+              </button>
+              <button
+                className={`booking-tab ${activeBookingTab === "in-progress" ? "active" : ""}`}
+                onClick={() => setActiveBookingTab("in-progress")}
+              >
+                In Progress
+              </button>
+              <button
+                className={`booking-tab ${activeBookingTab === "completed" ? "active" : ""}`}
+                onClick={() => setActiveBookingTab("completed")}
+              >
+                Completed
+              </button>
+            </div>
+
+            <div className="booking-cards">
+              {activeBookingTab === "confirmed" && (
+                <div className="booking-card">
+                  <h3>Confirmed Bookings</h3>
+                  <div className="booking-list">
+                    {filteredBookings.length > 0 ? (
+                      filteredBookings.map((booking) => (
+                        <div
+                          key={booking._id}
+                          className="booking-item confirmed"
+                        >
+                          <div className="booking-details">
+                            <p>
+                              <strong>Employee:</strong> {booking.employeeName}
+                            </p>
+                            <p>
+                              <strong>Route:</strong>{" "}
+                              {booking.routeId?.fromLocation} →{" "}
+                              {booking.routeId?.toLocation}
+                            </p>
+                            <p>
+                              <strong>Time:</strong>{" "}
+                              {booking.routeId?.departureTime}
+                            </p>
+                            <p>
+                              <strong>Date:</strong>{" "}
+                              {new Date(
+                                booking.travelDate,
+                              ).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="booking-actions">
+                            <button
+                              onClick={() => startTrip(booking._id)}
+                              className="start-btn"
+                            >
+                              🚗 Start Trip
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="no-bookings">
+                        <p>No confirmed bookings</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeBookingTab === "in-progress" && (
+                <div className="booking-card">
+                  <h3>In Progress Trips</h3>
+                  <div className="booking-list">
+                    {filteredBookings.length > 0 ? (
+                      filteredBookings.map((booking) => (
+                        <div
+                          key={booking._id}
+                          className="booking-item in-progress"
+                        >
+                          <div className="booking-details">
+                            <p>
+                              <strong>Employee:</strong> {booking.employeeName}
+                            </p>
+                            <p>
+                              <strong>Route:</strong>{" "}
+                              {booking.routeId?.fromLocation} →{" "}
+                              {booking.routeId?.toLocation}
+                            </p>
+                            <p>
+                              <strong>Time:</strong>{" "}
+                              {booking.routeId?.departureTime}
+                            </p>
+                            <div className="status-badge in-progress">
+                              In Progress
+                            </div>
+                          </div>
+                          <div className="booking-actions">
+                            <button
+                              onClick={() => completeTrip(booking._id)}
+                              className="complete-btn"
+                            >
+                              ✅ Complete Trip
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="no-bookings">
+                        <p>No trips in progress</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeBookingTab === "completed" && (
+                <div className="booking-card">
+                  <h3>Completed Trips</h3>
+                  <div className="booking-list">
+                    {filteredBookings.length > 0 ? (
+                      filteredBookings.map((booking) => (
+                        <div
+                          key={booking._id}
+                          className="booking-item completed"
+                        >
+                          <div className="booking-details">
+                            <p>
+                              <strong>Employee:</strong> {booking.employeeName}
+                            </p>
+                            <p>
+                              <strong>Route:</strong>{" "}
+                              {booking.routeId?.fromLocation} →{" "}
+                              {booking.routeId?.toLocation}
+                            </p>
+                            <p>
+                              <strong>Time:</strong>{" "}
+                              {booking.routeId?.departureTime}
+                            </p>
+                            <div className="status-badge completed">
+                              Completed
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="no-bookings">
+                        <p>No completed trips</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeMainTab === "notifications" && (
+          <div className="notifications-section">
+            <h3>Notifications</h3>
+            <div className="notification-list">
+              {notifications.length > 0 ? (
+                notifications.map((notification) => (
+                  <div key={notification._id} className={`notification-item ${!notification.isRead ? 'unread' : ''}`}>
+                    <h4>{notification.title}</h4>
+                    <p>{notification.message}</p>
+                    <div className="time">
+                      {new Date(notification.createdAt).toLocaleString()}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="no-notifications">
+                  <p>No notifications available</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeMainTab === "location" && (
+          <div className="location-section">
+            <h3>Live Location Tracking</h3>
+            <div className="location-info">
+              <p>
+                <strong>Status:</strong>{" "}
+                {isSharingLocation ? (
+                  <span style={{ color: "#28a745" }}>
+                    🟢 Actively sharing location
+                  </span>
+                ) : (
+                  <span style={{ color: "#ffc107" }}>
+                    🟡 Not sharing location
+                  </span>
+                )}
+              </p>
+              {liveLocation && (
+                <>
+                  <p>
+                    <strong>Current Location:</strong>{" "}
+                    {liveLocation.lat?.toFixed(6)},{" "}
+                    {liveLocation.lng?.toFixed(6)}
+                  </p>
+                  <p>
+                    <strong>Last Updated:</strong>{" "}
+                    {new Date(liveLocation.timestamp).toLocaleTimeString()}
+                  </p>
+                </>
+              )}
+              {activeTrip && (
+                <p>
+                  <strong>Active Trip:</strong> {activeTrip.employeeName} -{" "}
+                  {activeTrip.routeId?.fromLocation} →{" "}
+                  {activeTrip.routeId?.toLocation}
+                </p>
+              )}
+            </div>
+
+            <div className="location-map">
+              {liveLocation ? (
+                <iframe
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${liveLocation.lng - 0.01},${liveLocation.lat - 0.01},${liveLocation.lng + 0.01},${liveLocation.lat + 0.01}&layer=mapnik&marker=${liveLocation.lat},${liveLocation.lng}`}
+                  className="live-map"
+                  width="100%"
+                  height="400"
+                  frameBorder="0"
+                  allowFullScreen
+                  title="Driver Live Location"
+                />
+              ) : (
+                <div className="no-location">
+                  <p>No location data available</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
