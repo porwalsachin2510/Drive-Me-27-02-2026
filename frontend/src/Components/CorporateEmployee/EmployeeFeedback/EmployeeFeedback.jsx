@@ -36,8 +36,16 @@ const EmployeeFeedback = () => {
         const response = await api.get('/corporate-employee-users/dashboard');
         
         if (response.data.success) {
-          const trips = response.data.data?.travelHistory?.trips || response.data.data?.todayTrips || [];
-          setCompletedTrips(trips.filter(trip => trip.status === 'COMPLETED'));
+          const dashData = response.data.data;
+          // travelHistory can be an array directly, or an object with .trips
+          const historyTrips = Array.isArray(dashData?.travelHistory) 
+            ? dashData.travelHistory 
+            : dashData?.travelHistory?.trips || [];
+          const todayTrips = Array.isArray(dashData?.todayTrips) ? dashData.todayTrips : [];
+          const allTrips = [...historyTrips, ...todayTrips];
+          setCompletedTrips(allTrips.filter(trip => 
+            trip.status === 'COMPLETED' || trip.attendance === 'present'
+          ));
           return;
         }
       } catch (dashError) {
@@ -74,21 +82,18 @@ const EmployeeFeedback = () => {
 
   const fetchFeedbackHistory = async () => {
     try {
-      setLoading(true);
-      
       // Backend: GET /api/travel-history/my-history (travelHistoryRoutes.js)
       const response = await api.get('/travel-history/my-history');
       
       if (response.data.success) {
-        setFeedbackHistory(response.data.data?.feedbacks || response.data.history || []);
-      } else {
-        setError(response.data.message || 'Failed to fetch feedback history');
+        const data = response.data.data || response.data;
+        const feedbacks = data?.feedbacks || data?.history || [];
+        setFeedbackHistory(Array.isArray(feedbacks) ? feedbacks : []);
       }
     } catch (error) {
       console.error('Error fetching feedback history:', error);
-      setError(error.response?.data?.message || 'Failed to fetch feedback history');
-    } finally {
-      setLoading(false);
+      // Don't show error for missing endpoints - silently handle
+      setFeedbackHistory([]);
     }
   };
 

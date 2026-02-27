@@ -357,7 +357,8 @@ const CommuterMyBookingsPage = () => {
     try {
       setNoShowLoading(true);
       await commuterBookingAPI.markNoShow({
-        tripId: noShowBooking.tripId || noShowBooking._id,
+        tripId: noShowBooking.tripId || null,
+        bookingId: noShowBooking._id,
         monthlyPassId: noShowBooking.monthlyPassId || noShowBooking.monthlyPass?._id,
         reason: noShowReason,
         customReason: noShowReason === "OTHER" ? noShowCustomReason : null,

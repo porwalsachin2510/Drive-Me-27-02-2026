@@ -105,6 +105,19 @@ const initialState = {
     error: null,
     date: null,
   },
+  travelHistory: {
+    data: [],
+    loading: false,
+    error: null,
+  },
+  todayTrips: {
+    data: [],
+  },
+  vehicleInfo: null,
+  summary: null,
+  companyInfo: null,
+  employeeInfo: null,
+  bookings: [],
   assignedRoute: {
     data: null,
     loading: false,
@@ -168,11 +181,38 @@ const corporateEmployeeSlice = createSlice({
       })
       .addCase(fetchEmployeeTrips.fulfilled, (state, action) => {
         state.trips.loading = false;
-        // Dashboard API returns { success, data: { upcomingTrips, bookings, travelHistory, ... } }
+        // Dashboard API returns { success, data: { upcomingTrips, bookings, travelHistory, todayTrips, vehicleInfo, summary, employee, company } }
         const payload = action.payload;
-        const tripsData = payload?.data?.upcomingTrips || payload?.data?.bookings || payload?.trips || [];
+        const data = payload?.data || payload || {};
+        
+        // Store upcoming trips
+        const tripsData = data.upcomingTrips || data.bookings || payload?.trips || [];
         state.trips.data = Array.isArray(tripsData) ? tripsData : [];
-        state.trips.date = action.payload.date || new Date().toISOString().split('T')[0];
+        state.trips.date = payload?.date || new Date().toISOString().split('T')[0];
+        
+        // Store travel history
+        const historyData = data.travelHistory || [];
+        state.travelHistory.data = Array.isArray(historyData) ? historyData : [];
+        
+        // Store today's trips
+        const todayData = data.todayTrips || [];
+        state.todayTrips.data = Array.isArray(todayData) ? todayData : [];
+        
+        // Store vehicle info
+        state.vehicleInfo = data.vehicleInfo || null;
+        
+        // Store summary
+        state.summary = data.summary || null;
+        
+        // Store employee info
+        state.employeeInfo = data.employee || null;
+        
+        // Store company info
+        state.companyInfo = data.company || null;
+        
+        // Store bookings separately
+        const bookingsData = data.bookings || [];
+        state.bookings = Array.isArray(bookingsData) ? bookingsData : [];
       })
       .addCase(fetchEmployeeTrips.rejected, (state, action) => {
         state.trips.loading = false;
@@ -275,6 +315,21 @@ export const selectEmployeeTrips = (state) =>
 export const selectTripsLoading = (state) =>
   state.corporateEmployee.trips.loading;
 export const selectTripsError = (state) => state.corporateEmployee.trips.error;
+
+export const selectTravelHistory = (state) =>
+  state.corporateEmployee.travelHistory.data;
+export const selectTodayTrips = (state) =>
+  state.corporateEmployee.todayTrips.data;
+export const selectVehicleInfo = (state) =>
+  state.corporateEmployee.vehicleInfo;
+export const selectSummary = (state) =>
+  state.corporateEmployee.summary;
+export const selectEmployeeInfo = (state) =>
+  state.corporateEmployee.employeeInfo;
+export const selectCompanyInfo = (state) =>
+  state.corporateEmployee.companyInfo;
+export const selectBookings = (state) =>
+  state.corporateEmployee.bookings;
 
 export const selectAssignedRoute = (state) =>
   state.corporateEmployee.assignedRoute.data;

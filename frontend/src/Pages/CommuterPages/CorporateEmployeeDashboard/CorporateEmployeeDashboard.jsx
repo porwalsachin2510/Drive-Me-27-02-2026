@@ -19,7 +19,11 @@ import {
   selectAssignedRoute,
   selectNotifications,
   selectNoShowHistory,
-  selectDriverLocation
+  selectDriverLocation,
+  selectTravelHistory,
+  selectTodayTrips,
+  selectVehicleInfo,
+  selectBookings
 } from "../../../Redux/slices/corporateEmployeeSlice";
 
 export default function CorporateEmployeeDashboard() {
@@ -28,13 +32,20 @@ export default function CorporateEmployeeDashboard() {
   const userId = useSelector((state) => state.auth.userId);
 
   // Redux selectors
-  const todayTrips = useSelector(selectEmployeeTrips);
+  const upcomingTripsRedux = useSelector(selectEmployeeTrips);
   const tripsLoading = useSelector(selectTripsLoading);
   const tripsError = useSelector(selectTripsError);
   const assignedBus = useSelector(selectAssignedRoute);
   const notifications = useSelector(selectNotifications);
   const noShowHistory = useSelector(selectNoShowHistory);
   const driverLocation = useSelector(selectDriverLocation);
+  const travelHistory = useSelector(selectTravelHistory);
+  const todayTripsRedux = useSelector(selectTodayTrips);
+  const vehicleInfo = useSelector(selectVehicleInfo);
+  const bookings = useSelector(selectBookings);
+
+  // Use todayTrips from redux, fallback to upcomingTrips
+  const todayTrips = todayTripsRedux?.length > 0 ? todayTripsRedux : upcomingTripsRedux;
 
   const [activeTab, setActiveTab] = useState("corporate");
   const [upcomingTrips, setUpcomingTrips] = useState([]);
@@ -347,23 +358,23 @@ export default function CorporateEmployeeDashboard() {
               <div className="section-content">
                 <div className="bookings-card">
                   <h2>My Upcoming Bookings</h2>
-                  {todayTrips.length > 0 ? (
+                  {(bookings?.length > 0 || upcomingTripsRedux?.length > 0) ? (
                     <div className="bookings-list">
-                      {todayTrips.map((booking) => (
+                      {(bookings?.length > 0 ? bookings : upcomingTripsRedux).map((booking) => (
                         <div key={booking._id} className="booking-item">
                           <div className="booking-date">
-                            {new Date(booking.tripDate).toLocaleDateString()}
+                            {new Date(booking.tripDate || booking.date).toLocaleDateString()}
                           </div>
                           <div className="booking-info">
                             <span className="booking-time">
-                              {booking.startTime}
+                              {booking.startTime || 'TBD'}
                             </span>
                             <span className="booking-route">
-                              {booking.fromLocation} → {booking.toLocation}
+                              {booking.fromLocation || 'Unknown'} → {booking.toLocation || 'Unknown'}
                             </span>
                           </div>
                           <div className="booking-seat">
-                            <span>Seat: {booking.myBooking?.seatNumber}</span>
+                            <span>Vehicle: {booking.vehicleName || vehicleInfo?.vehicleName || 'Assigned'}</span>
                           </div>
                           <div className="booking-status">
                             <span
@@ -383,40 +394,47 @@ export default function CorporateEmployeeDashboard() {
                     </div>
                   ) : (
                     <div className="no-bookings">
-                      <p>You don't have any upcoming bookings</p>
+                      <p>No bookings yet</p>
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            {/* No-Show History */}
+            {/* Travel History */}
             {activeSection === "history" && (
               <div className="section-content">
                 <div className="history-card">
                   <h2>Travel History</h2>
-                  {todayTrips.length > 0 ? (
+                  {travelHistory && travelHistory.length > 0 ? (
                     <div className="history-list">
-                      {todayTrips.map((trip) => (
+                      {travelHistory.map((trip) => (
                         <div key={trip._id} className="history-item">
                           <div className="history-date">
-                            {new Date(trip.tripDate || trip.date).toLocaleDateString()}
+                            {new Date(trip.travelDate || trip.tripDate || trip.date).toLocaleDateString()}
                           </div>
                           <div className="history-info">
-                            <span>{trip.fromLocation || 'Unknown'} → {trip.toLocation || 'Unknown'}</span>
+                            <span>{trip.route || `${trip.fromLocation || 'Unknown'} → ${trip.toLocation || 'Unknown'}`}</span>
                           </div>
                           <div className="history-reason">
                             <span>
-                              Status: {trip.status || trip.attendance || "Scheduled"}
+                              Status: {trip.status || 'Completed'}
                             </span>
+                            {trip.attendance && <span> | Attendance: {trip.attendance}</span>}
                             {trip.startTime && <span> | Time: {trip.startTime}</span>}
+                            {trip.vehicleName && trip.vehicleName !== 'Not assigned' && (
+                              <span> | Vehicle: {trip.vehicleName}</span>
+                            )}
+                            {trip.driverName && trip.driverName !== 'Not assigned' && (
+                              <span> | Driver: {trip.driverName}</span>
+                            )}
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
                     <div className="no-history">
-                      <p>No travel history yet</p>
+                      <p>No travel history</p>
                     </div>
                   )}
                 </div>

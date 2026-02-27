@@ -132,7 +132,7 @@ export const getEmployeeDashboard = async (req, res) => {
         // Get employee details
         const employee = await CorporateEmployee.findOne({ userId })
             .populate('companyId', 'companyName businessName fullName')
-            .populate('transportDetails.assignedRoute', 'routeName fromLocation toLocation pickupPoints dropoffPoints stopPoints');
+            .populate('transportDetails.assignedRoute', 'fromLocation toLocation stopPoints vehicleId assignedDriver');
 
         if (!employee) {
             return res.status(404).json({
@@ -141,7 +141,7 @@ export const getEmployeeDashboard = async (req, res) => {
             });
         }
 
-        // Get travel history from trips collection
+        // Get travel history from trips collection (include past trips too)
         const historyData = await getEmployeeTravelHistoryFromTrips(userId, employee, period);
 
         // Get upcoming trips from trips collection
@@ -149,6 +149,52 @@ export const getEmployeeDashboard = async (req, res) => {
 
         // Get assigned vehicle details from contract
         const vehicleInfo = await getAssignedVehicleInfoFromContract(employee);
+
+        // Get today's trips separately for the Trip Info tab
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayEnd = new Date(todayStart);
+        todayEnd.setDate(todayEnd.getDate() + 1);
+
+        const todayTripsRaw = await Trip.find({
+            corporateId: employee.companyId,
+            tripDate: { $gte: todayStart, $lt: todayEnd },
+            status: { $in: ['SCHEDULED', 'IN_PROGRESS'] }
+        })
+        .populate('routeId', 'fromLocation toLocation stopPoints')
+        .populate('vehicleId', 'vehicleName registrationNumber vehicleCategory')
+        .populate('driverId', 'fullName whatsappNumber')
+        .sort({ startTime: 1 });
+
+        const todayTrips = todayTripsRaw.map(trip => ({
+            _id: trip._id,
+            date: trip.tripDate?.toISOString().split('T')[0],
+            tripDate: trip.tripDate,
+            startTime: trip.startTime,
+            endTime: trip.endTime,
+            fromLocation: trip.fromLocation || 'Unknown',
+            toLocation: trip.toLocation || 'Unknown',
+            route: `${trip.fromLocation || 'Unknown'} → ${trip.toLocation || 'Unknown'}`,
+            tripType: trip.tripType,
+            direction: trip.direction,
+            status: trip.status,
+            vehicleName: trip.vehicleId?.vehicleName || vehicleInfo?.vehicleName || 'Not assigned',
+            vehicleNumber: trip.vehicleId?.registrationNumber || vehicleInfo?.vehicleNumber || 'Not assigned',
+            driverName: trip.driverId?.fullName || vehicleInfo?.driverName || 'Not assigned',
+            driverContact: trip.driverId?.whatsappNumber || vehicleInfo?.driverContact || 'Not available',
+            totalSeats: trip.totalSeats,
+            availableSeats: trip.availableSeats,
+            bookedSeats: trip.bookedSeats
+        }));
+
+        // Build route info for response
+        const assignedRoute = employee.transportDetails?.assignedRoute;
+        const routeInfo = assignedRoute ? {
+            routeName: `${assignedRoute.fromLocation} → ${assignedRoute.toLocation}`,
+            fromLocation: assignedRoute.fromLocation,
+            toLocation: assignedRoute.toLocation,
+            stopPoints: assignedRoute.stopPoints || []
+        } : null;
 
         res.status(200).json({
             success: true,
@@ -163,7 +209,7 @@ export const getEmployeeDashboard = async (req, res) => {
                     shiftType: employee.transportDetails?.shiftType,
                     pickupPoint: employee.transportDetails?.pickupPoint,
                     dropOffPoint: employee.transportDetails?.dropOffPoint,
-                    route: employee.transportDetails?.assignedRoute
+                    route: routeInfo
                 },
                 company: {
                     companyName: employee.companyId?.companyName || employee.companyId?.fullName,
@@ -171,6 +217,7 @@ export const getEmployeeDashboard = async (req, res) => {
                 },
                 travelHistory: historyData,
                 upcomingTrips: upcomingTripsData.trips || [],
+                todayTrips,
                 bookings: upcomingTripsData.trips || [],
                 vehicleInfo,
                 summary: await getEmployeeSummary(userId, period)
@@ -193,7 +240,7 @@ export const getAssignedRoute = async (req, res) => {
         const userId = req.userId;
 
         const employee = await CorporateEmployee.findOne({ userId })
-            .populate('transportDetails.assignedRoute', 'routeName fromLocation toLocation pickupPoints dropoffPoints stopPoints');
+            .populate('transportDetails.assignedRoute', 'fromLocation toLocation stopPoints vehicleId assignedDriver');
 
         if (!employee) {
             return res.status(404).json({
@@ -294,12 +341,10 @@ export const getAssignedRoute = async (req, res) => {
             success: true,
             data: {
                 route: assignedRoute ? {
-                    routeName: assignedRoute.routeName,
+                    routeName: `${assignedRoute.fromLocation} → ${assignedRoute.toLocation}`,
                     fromLocation: assignedRoute.fromLocation,
                     toLocation: assignedRoute.toLocation,
-                    pickupPoints: assignedRoute.pickupPoints,
-                    dropoffPoints: assignedRoute.dropoffPoints,
-                    stopPoints: assignedRoute.stopPoints
+                    stopPoints: assignedRoute.stopPoints || []
                 } : null,
                 vehicle: vehicleInfo,
                 driver: driverInfo,

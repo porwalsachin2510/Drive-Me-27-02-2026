@@ -19,39 +19,95 @@ export const markNoShow = async (req, res) => {
             });
         }
 
-        // Try to find the trip - first by tripId, then by bookingId + date
+        // Try to find the trip using multiple strategies
         let trip = null;
+        let resolvedBooking = null;
         
+        // Strategy 1: Direct trip lookup by tripId
         if (tripId) {
             trip = await B2CPartnerTrip.findById(tripId);
         }
         
-        // If trip not found by tripId, try to find via booking's monthly trips for the given date
+        // Strategy 2: Use bookingId to find associated trip
         if (!trip && bookingId) {
-            const booking = await B2CPassengerBooking.findById(bookingId);
-            if (booking && booking.monthlyTrips && booking.monthlyTrips.length > 0) {
-                const targetDate = new Date(date);
-                const dayStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
-                const dayEnd = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() + 1);
-                
-                // Find the trip for this date from the booking's linked trips
-                trip = await B2CPartnerTrip.findOne({
-                    _id: { $in: booking.monthlyTrips },
-                    tripDate: { $gte: dayStart, $lt: dayEnd }
-                });
-            }
+            resolvedBooking = await B2CPassengerBooking.findById(bookingId);
             
-            // If still not found, try to find by route and date
-            if (!trip && booking) {
+            if (resolvedBooking) {
+                // 2a: If booking has a direct tripId reference, use it
+                if (resolvedBooking.tripId) {
+                    trip = await B2CPartnerTrip.findById(resolvedBooking.tripId);
+                }
+                
+                // 2b: Search in booking's monthlyTrips array for matching date
+                if (!trip && resolvedBooking.monthlyTrips && resolvedBooking.monthlyTrips.length > 0) {
+                    const targetDate = new Date(date);
+                    const dayStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+                    const dayEnd = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() + 1);
+                    
+                    trip = await B2CPartnerTrip.findOne({
+                        _id: { $in: resolvedBooking.monthlyTrips },
+                        tripDate: { $gte: dayStart, $lt: dayEnd }
+                    });
+                }
+                
+                // 2c: Find by route and date from the booking
+                if (!trip) {
+                    const targetDate = new Date(date);
+                    const dayStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+                    const dayEnd = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() + 1);
+                    
+                    // Try with routeId from the booking
+                    if (resolvedBooking.routeId) {
+                        trip = await B2CPartnerTrip.findOne({
+                            routeId: resolvedBooking.routeId,
+                            tripDate: { $gte: dayStart, $lt: dayEnd },
+                            status: { $ne: "Cancelled" }
+                        });
+                    }
+                    
+                    // 2d: Try with b2cPartnerId from the booking
+                    if (!trip && resolvedBooking.b2cPartnerId) {
+                        trip = await B2CPartnerTrip.findOne({
+                            b2cPartnerId: resolvedBooking.b2cPartnerId,
+                            tripDate: { $gte: dayStart, $lt: dayEnd },
+                            status: { $ne: "Cancelled" }
+                        });
+                    }
+                }
+            }
+        }
+        
+        // Strategy 3: If tripId was actually a bookingId (common frontend mistake)
+        if (!trip && tripId && !bookingId) {
+            resolvedBooking = await B2CPassengerBooking.findById(tripId);
+            if (resolvedBooking) {
                 const targetDate = new Date(date);
                 const dayStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
                 const dayEnd = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() + 1);
                 
-                trip = await B2CPartnerTrip.findOne({
-                    routeId: booking.routeId,
-                    tripDate: { $gte: dayStart, $lt: dayEnd },
-                    status: { $ne: "Cancelled" }
-                });
+                if (resolvedBooking.tripId) {
+                    trip = await B2CPartnerTrip.findById(resolvedBooking.tripId);
+                }
+                if (!trip && resolvedBooking.monthlyTrips?.length > 0) {
+                    trip = await B2CPartnerTrip.findOne({
+                        _id: { $in: resolvedBooking.monthlyTrips },
+                        tripDate: { $gte: dayStart, $lt: dayEnd }
+                    });
+                }
+                if (!trip && resolvedBooking.routeId) {
+                    trip = await B2CPartnerTrip.findOne({
+                        routeId: resolvedBooking.routeId,
+                        tripDate: { $gte: dayStart, $lt: dayEnd },
+                        status: { $ne: "Cancelled" }
+                    });
+                }
+                if (!trip && resolvedBooking.b2cPartnerId) {
+                    trip = await B2CPartnerTrip.findOne({
+                        b2cPartnerId: resolvedBooking.b2cPartnerId,
+                        tripDate: { $gte: dayStart, $lt: dayEnd },
+                        status: { $ne: "Cancelled" }
+                    });
+                }
             }
         }
         
@@ -74,9 +130,12 @@ export const markNoShow = async (req, res) => {
             }
         }
 
+        // Use resolved trip ID
+        const resolvedTripId = trip._id;
+
         // Check if no-show already exists for this trip and date
         const existingNoShow = await NoShow.findOne({
-            tripId,
+            tripId: resolvedTripId,
             passengerId,
             date: new Date(date)
         });
@@ -97,7 +156,7 @@ export const markNoShow = async (req, res) => {
 
         // Create no-show record
         const noShow = new NoShow({
-            tripId,
+            tripId: resolvedTripId,
             monthlyPassId,
             passengerId,
             date: new Date(date),
@@ -111,7 +170,7 @@ export const markNoShow = async (req, res) => {
 
         // Release the seat for this trip
         if (trip.bookedSeats > 0) {
-            await B2CPartnerTrip.findByIdAndUpdate(tripId, {
+            await B2CPartnerTrip.findByIdAndUpdate(resolvedTripId, {
                 $inc: { availableSeats: 1, bookedSeats: -1 }
             });
         }
