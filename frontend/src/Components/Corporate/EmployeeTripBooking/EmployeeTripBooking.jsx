@@ -30,11 +30,23 @@ function EmployeeTripBooking() {
   const fetchAvailableTrips = async () => {
     try {
       setLoading(true);
+      
+      // Get current date and routeId from employee's profile
+      const today = new Date().toISOString().split('T')[0];
+      const routeId = localStorage.getItem('routeId') || '';
+      
       // Backend: GET /api/b2c-trips/trips/available (b2cTripRoutes.js)
-      const response = await api.get("/b2c-trips/trips/available");
+      // Query parameters: routeId and date are required
+      const response = await api.get("/b2c-trips/trips/available", {
+        params: {
+          routeId,
+          date: today
+        }
+      });
       setTrips(response.data.data?.trips || response.data.trips || []);
     } catch (error) {
       console.error("Error fetching trips:", error);
+      setTrips([]);
     } finally {
       setLoading(false);
     }
@@ -56,12 +68,13 @@ function EmployeeTripBooking() {
   const fetchMonthlyPasses = async () => {
     try {
       setLoading(true);
-      // Backend: GET /api/monthly-pass/user/:userId (b2cMonthlyPassRoutes.js)
-      const userId = localStorage.getItem('userId') || '';
-      const response = await api.get(`/monthly-pass/user/${userId}`);
+      // Backend: GET /api/monthly-pass/user (b2cMonthlyPassRoutes.js)
+      // Uses authenticated user from JWT token
+      const response = await api.get("/monthly-pass/user");
       setMonthlyPasses(response.data.data?.passes || response.data.passes || []);
     } catch (error) {
       console.error("Error fetching monthly passes:", error);
+      setMonthlyPasses([]);
     } finally {
       setLoading(false);
     }

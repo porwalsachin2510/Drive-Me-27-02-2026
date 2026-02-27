@@ -31,6 +31,10 @@ export default function EmployeeDashboard() {
       const response = await api.get("/corporate-employee-users/route");
       if (response.data?.data) {
         setTripInfo(response.data.data);
+        // Store routeId in localStorage for use in other components
+        if (response.data.data.route?._id) {
+          localStorage.setItem('routeId', response.data.data.route._id);
+        }
       }
     } catch (err) {
       console.error("Error fetching trip info:", err);
@@ -194,7 +198,7 @@ function TripInfoTab({ tripInfo, loading, onMarkNotTraveling }) {
   if (loading)
     return <div className="loading">Loading trip information...</div>;
   if (!tripInfo)
-    return <div className="empty-state">No trip information available</div>;
+    return <div className="empty-state">No trip information available. Please contact your manager to get assigned to a route.</div>;
 
   return (
     <div className="tab-content">
@@ -204,53 +208,83 @@ function TripInfoTab({ tripInfo, loading, onMarkNotTraveling }) {
           Not Traveling Today
         </button>
       </div>
-      <div className="trip-info-cards">
-        <div className="info-card">
-          <label>Route</label>
-          <p>
-            {tripInfo.route?.fromLocation} → {tripInfo.route?.toLocation}
-          </p>
+      {tripInfo.route ? (
+        <>
+          <div style={{ marginBottom: "20px", padding: "16px", backgroundColor: "#f0f0f0", borderRadius: "8px" }}>
+            <h3 style={{ marginTop: 0 }}>
+              {tripInfo.route?.fromLocation} → {tripInfo.route?.toLocation}
+            </h3>
+            <p style={{ marginBottom: 0, color: "#666" }}>Status: Traveling Today</p>
+          </div>
+          <div className="trip-info-cards">
+            <div className="info-card">
+              <label>Vehicle</label>
+              <p>
+                {tripInfo.vehicle?.make && tripInfo.vehicle?.model 
+                  ? `${tripInfo.vehicle.make} ${tripInfo.vehicle.model}`
+                  : "Not assigned"}
+              </p>
+              {tripInfo.vehicle?.licensePlate && (
+                <small>License Plate: {tripInfo.vehicle.licensePlate}</small>
+              )}
+            </div>
+            <div className="info-card">
+              <label>Driver</label>
+              <p>{tripInfo.driver?.fullName || "Not assigned"}</p>
+              {tripInfo.driver?.phone && (
+                <small>Phone: {tripInfo.driver.phone}</small>
+              )}
+            </div>
+            <div className="info-card">
+              <label>Pickup Stop</label>
+              <p>{tripInfo.pickupStop || "Not assigned"}</p>
+            </div>
+            <div className="info-card">
+              <label>Dropoff Stop</label>
+              <p>{tripInfo.dropoffStop || "Not assigned"}</p>
+            </div>
+            <div className="info-card">
+              <label>Shift Type</label>
+              <p>{tripInfo.shiftType || "Full Day"}</p>
+            </div>
+            {tripInfo.route?.stopPoints && tripInfo.route.stopPoints.length > 0 && (
+              <div className="info-card" style={{ gridColumn: "span 2" }}>
+                <label>Stop Points</label>
+                <div style={{ display: "grid", gap: "8px" }}>
+                  {tripInfo.route.stopPoints.map((stop, index) => (
+                    <div key={index} style={{ padding: "8px", backgroundColor: "#fff", borderRadius: "4px", borderLeft: "3px solid #6b7280" }}>
+                      <strong>{stop.location}</strong> - {stop.time || "Time not specified"}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <div style={{ padding: "20px", backgroundColor: "#fff3cd", borderRadius: "8px", color: "#856404" }}>
+          <strong>No Route Assigned</strong>
+          <p>You haven't been assigned to a route yet. Please contact your manager or HR to request a route assignment.</p>
         </div>
-        <div className="info-card">
-          <label>Vehicle</label>
-          <p>
-            {tripInfo.vehicle?.make} {tripInfo.vehicle?.model}
-          </p>
-          <small>{tripInfo.vehicle?.licensePlate}</small>
-        </div>
-        <div className="info-card">
-          <label>Driver</label>
-          <p>{tripInfo.driver?.fullName}</p>
-          <small>{tripInfo.driver?.phone}</small>
-        </div>
-        <div className="info-card">
-          <label>Pickup Stop</label>
-          <p>{tripInfo.pickupStop || "Not assigned"}</p>
-        </div>
-        <div className="info-card">
-          <label>Dropoff Stop</label>
-          <p>{tripInfo.dropoffStop || "Not assigned"}</p>
-        </div>
-        <div className="info-card">
-          <label>Shift Type</label>
-          <p>{tripInfo.shiftType || "Full Day"}</p>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
 
 function MyBookingsTab({ bookings, onCancel, loading }) {
   if (loading) return <div className="loading">Loading bookings...</div>;
+  
+  // Ensure bookings is an array
+  const bookingsList = Array.isArray(bookings) ? bookings : [];
 
   return (
     <div className="tab-content">
       <h2>My Bookings</h2>
-      {bookings.length === 0 ? (
+      {bookingsList.length === 0 ? (
         <div className="empty-state">No bookings yet</div>
       ) : (
         <div className="bookings-list">
-          {bookings.map((booking) => (
+          {bookingsList.map((booking) => (
             <div key={booking._id} className="booking-card">
               <div className="booking-info">
                 <h3>
@@ -288,6 +322,9 @@ function HistoryTab({ history, loading, onRate }) {
   const [feedback, setFeedback] = useState("");
 
   if (loading) return <div className="loading">Loading history...</div>;
+  
+  // Ensure history is an array
+  const historyList = Array.isArray(history) ? history : [];
 
   const handleSubmitRating = (tripId) => {
     onRate(tripId, rating, feedback);
@@ -299,11 +336,11 @@ function HistoryTab({ history, loading, onRate }) {
   return (
     <div className="tab-content">
       <h2>Travel History</h2>
-      {history.length === 0 ? (
+      {historyList.length === 0 ? (
         <div className="empty-state">No travel history</div>
       ) : (
         <div className="history-list">
-          {history.map((trip) => (
+          {historyList.map((trip) => (
             <div key={trip._id} className="history-item">
               <div className="history-date">
                 {new Date(trip.date || trip.travelDate).toLocaleDateString()}

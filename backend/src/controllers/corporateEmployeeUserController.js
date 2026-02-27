@@ -140,11 +140,11 @@ export const getEmployeeDashboard = async (req, res) => {
             });
         }
 
-        // Get travel history
-        const travelHistory = await getEmployeeTravelHistory(userId, period);
+        // Get travel history - returns array of trips
+        const historyData = await getEmployeeTravelHistoryDetails(userId, period);
 
-        // Get upcoming trips
-        const upcomingTrips = await getUpcomingTrips(userId);
+        // Get upcoming trips - returns array
+        const upcomingTripsData = await getUpcomingTrips(userId);
 
         // Get assigned vehicle details
         const vehicleInfo = await getAssignedVehicleInfo(userId);
@@ -168,8 +168,9 @@ export const getEmployeeDashboard = async (req, res) => {
                     companyName: employee.companyId?.companyName || employee.companyId?.fullName,
                     businessName: employee.companyId?.businessName
                 },
-                travelHistory,
-                upcomingTrips,
+                travelHistory: historyData,
+                upcomingTrips: upcomingTripsData.trips || [],
+                bookings: upcomingTripsData.trips || [],
                 vehicleInfo,
                 summary: await getEmployeeSummary(userId, period)
             }
@@ -205,6 +206,38 @@ export const getAssignedRoute = async (req, res) => {
         // Get schedule details
         const schedule = assignedRoute?._id ? await getRouteSchedule(assignedRoute._id) : { schedule: [] };
 
+        // Get vehicle and driver info from VehicleAssignment
+        let vehicleInfo = null;
+        let driverInfo = null;
+        
+        if (employee.companyId) {
+            try {
+                const contracts = await Contract.find({ corporateOwnerId: employee.companyId }).distinct('_id');
+                const vehicleAssignment = await VehicleAssignment.findOne({
+                    contractId: { $in: contracts }
+                }).populate('vehicleId', 'make model licensePlate vehicleType capacity')
+                  .populate('driverId', 'fullName email contactNumber');
+                
+                if (vehicleAssignment) {
+                    vehicleInfo = vehicleAssignment.vehicleId ? {
+                        make: vehicleAssignment.vehicleId.make,
+                        model: vehicleAssignment.vehicleId.model,
+                        licensePlate: vehicleAssignment.vehicleId.licensePlate,
+                        vehicleType: vehicleAssignment.vehicleId.vehicleType,
+                        capacity: vehicleAssignment.vehicleId.capacity
+                    } : null;
+                    
+                    driverInfo = vehicleAssignment.driverId ? {
+                        fullName: vehicleAssignment.driverId.fullName,
+                        email: vehicleAssignment.driverId.email,
+                        phone: vehicleAssignment.driverId.contactNumber
+                    } : null;
+                }
+            } catch (err) {
+                console.error("Error fetching vehicle assignment:", err);
+            }
+        }
+
         res.status(200).json({
             success: true,
             data: {
@@ -216,11 +249,13 @@ export const getAssignedRoute = async (req, res) => {
                     dropoffPoints: assignedRoute.dropoffPoints,
                     stopPoints: assignedRoute.stopPoints
                 } : null,
-                vehicle: null, // Will be populated from VehicleAssignment when available
+                vehicle: vehicleInfo,
+                driver: driverInfo,
                 schedule,
                 seatNumber: employee.transportDetails?.seatNumber,
-                pickupPoint: employee.transportDetails?.pickupPoint,
-                dropOffPoint: employee.transportDetails?.dropOffPoint
+                pickupStop: employee.transportDetails?.pickupPoint,
+                dropoffStop: employee.transportDetails?.dropOffPoint,
+                shiftType: employee.transportDetails?.shiftType
             }
         });
 
@@ -539,6 +574,66 @@ const getEmployeeTravelHistory = async (userId, period) => {
             absentTrips: 0,
             onTimeRate: 0
         };
+    }
+};
+
+// Get employee travel history with full trip details as array
+const getEmployeeTravelHistoryDetails = async (userId, period) => {
+    try {
+        const employee = await CorporateEmployee.findOne({ userId })
+            .populate('companyId', 'companyName');
+
+        if (!employee) {
+            return [];
+        }
+
+        // Calculate date range based on period
+        const today = new Date();
+        let startDate;
+        
+        switch (period) {
+            case 'week':
+                startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                break;
+            case 'month':
+                startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                break;
+            default:
+                startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+        }
+
+        // Get corporate bookings for this employee
+        const bookings = await CorporateBooking.find({
+            passengerId: userId,
+            travelDate: {
+                $gte: startDate,
+                $lte: today
+            }
+        }).populate('routeId', 'fromLocation toLocation')
+          .populate('driverId', 'fullName contactNumber')
+          .sort({ travelDate: -1 });
+
+        // Map bookings to trip format for history display
+        const trips = bookings.map(booking => ({
+            _id: booking._id,
+            date: booking.travelDate,
+            travelDate: booking.travelDate,
+            fromLocation: booking.routeId?.fromLocation || 'Unknown',
+            toLocation: booking.routeId?.toLocation || 'Unknown',
+            route: `${booking.routeId?.fromLocation || 'Unknown'} → ${booking.routeId?.toLocation || 'Unknown'}`,
+            status: booking.bookingStatus,
+            attendance: booking.bookingStatus === 'COMPLETED' ? 'PRESENT' : (booking.bookingStatus === 'CANCELLED' ? 'ABSENT' : 'SCHEDULED'),
+            rating: booking.feedback?.rating || null,
+            feedback: booking.feedback?.comment || null,
+            driverName: booking.driverId?.fullName || 'Not assigned',
+            driverContact: booking.driverId?.contactNumber || 'Not available'
+        }));
+
+        return trips;
+
+    } catch (error) {
+        console.error("Error getting employee travel history details:", error);
+        return [];
     }
 };
 
