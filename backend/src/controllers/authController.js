@@ -492,6 +492,116 @@ export const resendOTP = async (req, res) => {
     }
 }
 
+export const validatePasswordToken = async (req, res) => {
+    try {
+        const { token } = req.params
+
+        if (!token) {
+            return res.status(400).json({
+                success: false,
+                message: "Token is required",
+            })
+        }
+
+        const user = await User.findOne({
+            passwordSetupToken: token,
+            passwordSetupTokenExpiry: { $gt: new Date() }
+        })
+
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid or expired token. Please contact your corporate admin for a new invitation.",
+            })
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Token is valid",
+            data: {
+                email: user.email,
+                fullName: user.fullName,
+            }
+        })
+    } catch (error) {
+        console.error("Validate password token error:", error)
+        res.status(500).json({
+            success: false,
+            message: error.message || "Token validation failed",
+        })
+    }
+}
+
+export const setPassword = async (req, res) => {
+    try {
+        const { token, password, confirmPassword } = req.body
+
+        if (!token || !password || !confirmPassword) {
+            return res.status(400).json({
+                success: false,
+                message: "Token, password, and confirm password are required",
+            })
+        }
+
+        if (password !== confirmPassword) {
+            return res.status(400).json({
+                success: false,
+                message: "Passwords do not match",
+            })
+        }
+
+        if (password.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: "Password must be at least 6 characters long",
+            })
+        }
+
+        const user = await User.findOne({
+            passwordSetupToken: token,
+            passwordSetupTokenExpiry: { $gt: new Date() }
+        })
+
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid or expired token. Please contact your corporate admin for a new invitation.",
+            })
+        }
+
+        // Update user password and clear the token
+        user.password = password // Will be hashed by pre-save hook
+        user.passwordSetupToken = null
+        user.passwordSetupTokenExpiry = null
+        user.isPasswordSet = true
+        user.isEmailVerified = true
+        await user.save()
+
+        // Generate login token
+        const loginToken = generateToken(user._id, user.role)
+
+        res.cookie("token", loginToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        })
+
+        res.status(200).json({
+            success: true,
+            message: "Password set successfully! You can now login.",
+            token: loginToken,
+            user: user.toJSON(),
+        })
+    } catch (error) {
+        console.error("Set password error:", error)
+        res.status(500).json({
+            success: false,
+            message: error.message || "Failed to set password",
+        })
+    }
+}
+
 export const logout = (req, res) => {
     try {
         // The verifyToken middleware ensures this, so we can proceed safely

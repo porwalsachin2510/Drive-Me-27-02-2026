@@ -51,6 +51,7 @@ import CorporateDriverDashboard from "./Pages/DriverPages/CorporateDriverDashboa
 import DriverLocationTracking from "./Pages/DriverPages/DriverLocationTracking/DriverLocationTracking";
 import Navbar from "./Components/Navbar/Navbar";
 import Footer from "./Components/Footer/Footer";
+import SetPassword from "./Pages/SetPassword/SetPassword";
 
 function App() {
   return (
@@ -357,6 +358,14 @@ function App() {
             element={
               <PublicRoute>
                 <Register />{" "}
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/set-password"
+            element={
+              <PublicRoute>
+                <SetPassword />
               </PublicRoute>
             }
           />

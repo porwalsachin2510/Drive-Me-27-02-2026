@@ -59,15 +59,20 @@ export const bulkUploadEmployees = async (req, res) => {
                     continue;
                 }
 
-                // Create user account for employee
+                // Create user account for employee with a random temporary password
+                // The real password will be set by the employee via invitation link
+                const crypto = await import('crypto');
+                const tempPassword = crypto.default.randomBytes(16).toString('hex');
+                
                 const user = new User({
                     fullName: employeeData.fullName,
                     email: employeeData.email,
-                    password: employeeData.password || "tempPassword123", // Default password
+                    password: tempPassword, // Random temp password - employee will set their own via invitation
                     role: "CORPORATE_EMPLOYEE",
                     companyId: companyId,
-                    whatsappNumber: employeeData.contactNumber || employeeData.whatsappNumber,
-                    status: "ACTIVE"
+                    whatsappNumber: employeeData.contactNumber || employeeData.whatsappNumber || "N/A",
+                    status: "ACTIVE",
+                    isPasswordSet: false // Mark that password needs to be set
                 });
 
                 await user.save();
@@ -556,19 +561,39 @@ export const sendInvitationEmails = async (req, res) => {
         const manager = await User.findById(managerId).select("companyName fullName");
         const results = { sent: [], failed: [] };
 
+        // Import crypto for token generation
+        const crypto = await import('crypto');
+
         for (const empId of employeeIds) {
             try {
                 const employee = await CorporateEmployee.findOne({
                     _id: empId,
                     companyId
-                }).populate("userId", "email fullName");
+                }).populate("userId", "email fullName isPasswordSet");
 
                 if (!employee || !employee.userId) {
                     results.failed.push({ employeeId: empId, reason: "Employee not found or no user account" });
                     continue;
                 }
 
-                console.log("Sending email to:", employee.userId.email);
+                const userAccount = await User.findById(employee.userId._id);
+                if (!userAccount) {
+                    results.failed.push({ employeeId: empId, reason: "User account not found" });
+                    continue;
+                }
+
+                // Generate password setup token
+                const passwordSetupToken = crypto.default.randomBytes(32).toString('hex');
+                const tokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days expiry
+
+                // Update user with password setup token
+                userAccount.passwordSetupToken = passwordSetupToken;
+                userAccount.passwordSetupTokenExpiry = tokenExpiry;
+                await userAccount.save();
+
+                const setPasswordUrl = `${process.env.FRONTEND_URL}/set-password?token=${passwordSetupToken}`;
+
+                console.log("Sending invitation email to:", employee.userId.email);
 
                 const emailResult = await sendEmail(
                     employee.userId.email,
@@ -582,16 +607,19 @@ export const sendInvitationEmails = async (req, res) => {
                                 <p>Hello <strong>${employee.personalInfo?.firstName || employee.fullName || 'Employee'} ${employee.personalInfo?.lastName || ''}</strong>,</p>
                                 <p>You have been invited by <strong>${manager?.companyName || manager?.fullName || 'your company'}</strong> to use the DriveMe corporate transport service.</p>
                                 <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #1a237e; margin: 20px 0;">
-                                    <h3 style="color: #1a237e; margin-top: 0;">Your Login Credentials</h3>
+                                    <h3 style="color: #1a237e; margin-top: 0;">Your Account Details</h3>
                                     <p><strong>Email:</strong> ${employee.userId.email}</p>
                                     <p><strong>Employee ID:</strong> ${employee.employeeId}</p>
                                     <p><strong>Department:</strong> ${employee.personalInfo?.department || 'N/A'}</p>
-                                    <p style="color: #666; font-size: 13px;">Use your registered email to log in. If you haven't set a password yet, use the registration link below.</p>
                                 </div>
-                                <div style="text-align: center; margin: 20px 0;">
-                                    <a href="${process.env.FRONTEND_URL}/login" style="background: #1a237e; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Login to Dashboard</a>
+                                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin: 20px 0;">
+                                    <p style="margin: 0; color: #856404; font-weight: 500;">Please click the button below to set up your password and activate your account.</p>
                                 </div>
-                                <p style="color: #666; font-size: 13px; text-align: center;">If you have any questions, contact your transport coordinator.</p>
+                                <div style="text-align: center; margin: 25px 0;">
+                                    <a href="${setPasswordUrl}" style="background: #1a237e; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Set Your Password</a>
+                                </div>
+                                <p style="color: #666; font-size: 13px; text-align: center;">This link will expire in 7 days. If you have any questions, contact your transport coordinator.</p>
+                                <p style="color: #999; font-size: 12px; text-align: center; margin-top: 20px;">If the button doesn't work, copy and paste this link in your browser:<br><a href="${setPasswordUrl}" style="color: #1a237e; word-break: break-all;">${setPasswordUrl}</a></p>
                             </div>
                         </div>
                     `

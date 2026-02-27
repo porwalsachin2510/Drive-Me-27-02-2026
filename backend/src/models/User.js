@@ -35,6 +35,18 @@ const userSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
+        passwordSetupToken: {
+            type: String,
+            default: null,
+        },
+        passwordSetupTokenExpiry: {
+            type: Date,
+            default: null,
+        },
+        isPasswordSet: {
+            type: Boolean,
+            default: false,
+        },
         country: {
             type: String,
             enum: ["UAE", "KW", "SA", "BH", "OM", "QA"],
