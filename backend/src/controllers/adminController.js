@@ -3495,6 +3495,8 @@ export const createB2CPartnerTrip = async (req, res) => {
 // Get Commuter routes
 export const getCommuterRoutes = async (req, res) => {
     try {
+        const userId = req.userId;
+        
         // Fetch real active B2C routes from database
         const routes = await B2CPartnerRoute.find({ status: 'Active' })
             .populate('b2cPartnerId', 'fullName companyName email')
@@ -3502,13 +3504,17 @@ export const getCommuterRoutes = async (req, res) => {
 
         // Fetch all active schedules for these routes
         const routeIds = routes.map(r => r._id);
-        const schedules = await B2CPartnerSchedule.find({
-            routeId: { $in: routeIds },
-            isActive: true,
-            status: 'Active'
-        });
+        let schedules = [];
+        try {
+            schedules = await B2CPartnerSchedule.find({
+                routeId: { $in: routeIds },
+                isActive: true,
+                status: 'Active'
+            });
+        } catch (e) {
+            // B2CPartnerSchedule may not exist yet
+        }
         
-        // Create a map of routeId -> schedule
         const scheduleMap = {};
         schedules.forEach(s => {
             if (!scheduleMap[s.routeId.toString()]) {
@@ -3516,106 +3522,117 @@ export const getCommuterRoutes = async (req, res) => {
             }
         });
 
-    const formattedRoutes = routes.map(route => {
-      const schedule = scheduleMap[route._id.toString()];
-      
-      // Compute departure and arrival from stop points
-      const stops = route.stopPoints || [];
-      const sortedStops = [...stops].sort((a, b) => a.order - b.order);
-      const firstStop = sortedStops.length > 0 ? sortedStops[0] : null;
-      const lastStop = sortedStops.length > 0 ? sortedStops[sortedStops.length - 1] : null;
-      
-      // Priority: schedule tripTimes > route startTime > stop point times
-      let departureTime = 'Not set';
-      let arrivalTime = 'Not set';
-      
-      if (schedule && schedule.tripTimes && schedule.tripTimes.length > 0) {
-          departureTime = schedule.tripTimes[0].departureTime || 'Not set';
-          arrivalTime = schedule.tripTimes[0].arrivalTime || 'Not set';
-      } else if (route.startTime) {
-          departureTime = route.startTime;
-          arrivalTime = lastStop?.time || 'Not set';
-      } else {
-          departureTime = firstStop?.time || 'Not set';
-          arrivalTime = lastStop?.time || 'Not set';
-      }
-      
-      // Estimate distance from number of stops
-      const numStops = stops.length;
-      const estimatedDistance = numStops > 1 ? `~${(numStops * 15)} km` : 'Not available';
-      
-      // Estimate duration from departure and arrival times
-      let estimatedDuration = 'Not available';
-      const depTime = departureTime !== 'Not set' ? departureTime : firstStop?.time;
-      const arrTime = arrivalTime !== 'Not set' ? arrivalTime : lastStop?.time;
-      
-      if (depTime && arrTime && depTime !== arrTime) {
-        try {
-          // Parse time strings (support both "HH:MM" and "HH:MM AM/PM" formats)
-          const parseTime = (timeStr) => {
+        // Helper to parse time strings
+        const parseTime = (timeStr) => {
             if (!timeStr) return null;
             const cleanTime = timeStr.trim();
             const amPmMatch = cleanTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
             if (amPmMatch) {
-              let h = parseInt(amPmMatch[1]);
-              const m = parseInt(amPmMatch[2]);
-              const period = amPmMatch[3].toUpperCase();
-              if (period === 'PM' && h !== 12) h += 12;
-              if (period === 'AM' && h === 12) h = 0;
-              return h * 60 + m;
+                let h = parseInt(amPmMatch[1]);
+                const m = parseInt(amPmMatch[2]);
+                const period = amPmMatch[3].toUpperCase();
+                if (period === 'PM' && h !== 12) h += 12;
+                if (period === 'AM' && h === 12) h = 0;
+                return h * 60 + m;
             }
             const simpleMatch = cleanTime.match(/^(\d{1,2}):(\d{2})$/);
             if (simpleMatch) {
-              return parseInt(simpleMatch[1]) * 60 + parseInt(simpleMatch[2]);
+                return parseInt(simpleMatch[1]) * 60 + parseInt(simpleMatch[2]);
             }
             return null;
-          };
-          
-          const depMinutes = parseTime(depTime);
-          const arrMinutes = parseTime(arrTime);
-          
-          if (depMinutes !== null && arrMinutes !== null) {
-            const diffMinutes = arrMinutes - depMinutes;
-            if (diffMinutes > 0) {
-              const hrs = Math.floor(diffMinutes / 60);
-              const mins = diffMinutes % 60;
-              estimatedDuration = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+        };
+
+        const formattedRoutes = routes.map(route => {
+            const schedule = scheduleMap[route._id.toString()];
+            
+            const stops = route.stopPoints || [];
+            const sortedStops = [...stops].sort((a, b) => a.order - b.order);
+            const firstStop = sortedStops.length > 0 ? sortedStops[0] : null;
+            const lastStop = sortedStops.length > 0 ? sortedStops[sortedStops.length - 1] : null;
+            
+            // Priority: schedule tripTimes > route startTime > stop point times
+            let departureTime = 'Not set';
+            let arrivalTime = 'Not set';
+            
+            if (schedule && schedule.tripTimes && schedule.tripTimes.length > 0) {
+                departureTime = schedule.tripTimes[0].departureTime || schedule.tripTimes[0].startTime || 'Not set';
+                arrivalTime = schedule.tripTimes[0].arrivalTime || schedule.tripTimes[0].endTime || 'Not set';
+            } else if (route.startTime) {
+                departureTime = route.startTime;
+                arrivalTime = lastStop?.time || 'Not set';
+            } else if (firstStop) {
+                departureTime = firstStop.time || 'Not set';
+                arrivalTime = lastStop?.time || 'Not set';
             }
-          }
-        } catch (e) {
-          // Fallback
-        }
-      }
-      
-      return {
-        _id: route._id,
-        name: route.routeName || `${route.fromLocation || 'Unknown'} to ${route.toLocation || 'Unknown'}`,
-        startPoint: route.fromLocation || 'Not set',
-        endPoint: route.toLocation || 'Not set',
-        distance: estimatedDistance,
-        estimatedTime: estimatedDuration,
-        price: route.pricing?.oneWayPrice || 0,
-        roundTripPrice: route.pricing?.roundTripPrice || 0,
-        status: route.status?.toLowerCase() || 'inactive',
-        partnerName: route.b2cPartnerId?.companyName || route.b2cPartnerId?.fullName || 'Unknown',
-        departureTime,
-        arrivalTime,
-        totalSeats: route.totalSeats || 0,
-        availableSeats: route.availableSeats || 0,
-        stops: route.stopPoints || [],
-        tripType: route.tripType || 'One Way',
-        operatingDays: route.availableDays || [],
-        pricing: route.pricing || {},
-        createdAt: route.createdAt
-      };
-    });
+            
+            // Estimate distance
+            const numStops = stops.length;
+            let estimatedDistance = 'Not available';
+            if (numStops > 1) {
+                estimatedDistance = `~${(numStops * 15)} km`;
+            } else if (numStops === 1 || route.fromLocation !== route.toLocation) {
+                estimatedDistance = '~15 km';
+            }
+            
+            // Estimate duration
+            let estimatedDuration = 'Not available';
+            const depTime = departureTime !== 'Not set' ? departureTime : firstStop?.time;
+            const arrTime = arrivalTime !== 'Not set' ? arrivalTime : lastStop?.time;
+            
+            if (depTime && arrTime && depTime !== arrTime) {
+                try {
+                    const depMinutes = parseTime(depTime);
+                    const arrMinutes = parseTime(arrTime);
+                    
+                    if (depMinutes !== null && arrMinutes !== null) {
+                        let diffMinutes = arrMinutes - depMinutes;
+                        if (diffMinutes < 0) diffMinutes += 24 * 60; // handle overnight
+                        if (diffMinutes > 0) {
+                            const hrs = Math.floor(diffMinutes / 60);
+                            const mins = diffMinutes % 60;
+                            estimatedDuration = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+                        }
+                    }
+                } catch (e) {
+                    // Fallback
+                }
+            }
+            
+            // Check if current user is a member of this route
+            const isMember = (route.members || []).some(
+                m => m.userId && m.userId.toString() === userId.toString() && m.status === 'ACTIVE'
+            );
+            
+            return {
+                _id: route._id,
+                name: route.routeName || `${route.fromLocation || 'Unknown'} to ${route.toLocation || 'Unknown'}`,
+                startPoint: route.fromLocation || 'Not set',
+                endPoint: route.toLocation || 'Not set',
+                distance: estimatedDistance,
+                estimatedTime: estimatedDuration,
+                price: route.pricing?.oneWayPrice || 0,
+                roundTripPrice: route.pricing?.roundTripPrice || 0,
+                status: isMember ? 'active' : (route.status?.toLowerCase() || 'inactive'),
+                isMember,
+                partnerName: route.b2cPartnerId?.companyName || route.b2cPartnerId?.fullName || 'Unknown',
+                departureTime,
+                arrivalTime,
+                totalSeats: route.totalSeats || 0,
+                availableSeats: route.availableSeats || 0,
+                stops: route.stopPoints || [],
+                tripType: route.tripType || 'One Way',
+                operatingDays: route.availableDays || [],
+                pricing: route.pricing || {},
+                createdAt: route.createdAt
+            };
+        });
 
         res.status(200).json({ 
             success: true, 
             routes: formattedRoutes 
         });
     } catch (error) {
-        console.error("[v0] Error fetching commuter routes:", error);
+        console.error("Error fetching commuter routes:", error);
         res.status(500).json({ 
             success: false, 
             message: "Error fetching commuter routes" 
@@ -3629,7 +3646,6 @@ export const joinRoute = async (req, res) => {
         const { routeId } = req.params;
         const userId = req.userId;
         
-        // Validate route ID
         if (!routeId) {
             return res.status(400).json({
                 success: false,
@@ -3637,9 +3653,6 @@ export const joinRoute = async (req, res) => {
             });
         }
         
-        console.log(`[v0] User ${userId} attempting to join route ${routeId}`);
-        
-        // Check if route exists and is active
         const route = await B2CPartnerRoute.findById(routeId);
         if (!route) {
             return res.status(404).json({
@@ -3655,23 +3668,18 @@ export const joinRoute = async (req, res) => {
             });
         }
         
-        // Check if user is already a member of this route
-        const existingMembership = await Transaction.findOne({
-            userId: userId,
-            type: "ROUTE_MEMBERSHIP",
-            category: "COMMUTER_ROUTE",
-            'metadata.routeId': routeId,
-            status: { $in: ['ACTIVE', 'PENDING'] }
-        });
+        // Check if user is already an active member using the members array
+        const existingMember = (route.members || []).find(
+            m => m.userId && m.userId.toString() === userId.toString() && m.status === 'ACTIVE'
+        );
         
-        if (existingMembership) {
+        if (existingMember) {
             return res.status(400).json({
                 success: false,
                 message: "User is already a member of this route"
             });
         }
         
-        // Check available seats
         if (route.availableSeats <= 0) {
             return res.status(400).json({
                 success: false,
@@ -3679,25 +3687,7 @@ export const joinRoute = async (req, res) => {
             });
         }
         
-        // Create route membership record
-        const membership = await Transaction.create({
-            userId: userId,
-            type: "ROUTE_MEMBERSHIP",
-            category: "COMMUTER_ROUTE",
-            routeId: routeId,
-            status: "ACTIVE",
-            joinedAt: new Date(),
-            metadata: {
-                routeName: `${route.fromLocation} to ${route.toLocation}`,
-                fromLocation: route.fromLocation,
-                toLocation: route.toLocation,
-                providerId: route.b2cPartnerId,
-                pricing: route.pricing,
-                availableDays: route.availableDays
-            }
-        });
-        
-        // Update route available seats
+        // Add member to route's members array and decrement available seats
         await B2CPartnerRoute.findByIdAndUpdate(routeId, {
             $inc: { availableSeats: -1 },
             $push: {
@@ -3709,28 +3699,9 @@ export const joinRoute = async (req, res) => {
             }
         });
         
-        // Create notification for route provider
-        await Transaction.create({
-            userId: route.b2cPartnerId,
-            type: "ROUTE_MEMBER_JOINED",
-            category: "PROVIDER_NOTIFICATION",
-            memberId: userId,
-            routeId: routeId,
-            status: "SENT",
-            createdAt: new Date(),
-            metadata: {
-                routeName: `${route.fromLocation} to ${route.toLocation}`,
-                memberId: userId,
-                action: "JOINED"
-            }
-        });
-        
-        console.log(`[v0] User ${userId} successfully joined route ${routeId}`);
-        
         res.status(200).json({
             success: true,
             message: "Successfully joined route",
-            membershipId: membership._id,
             routeInfo: {
                 routeId: route._id,
                 routeName: `${route.fromLocation} to ${route.toLocation}`,
@@ -3743,26 +3714,7 @@ export const joinRoute = async (req, res) => {
         });
         
     } catch (error) {
-        console.error("[v0] Error joining route:", error);
-        
-        // Log failed join attempt
-        try {
-            await Transaction.create({
-                userId: req.userId,
-                type: "ROUTE_JOIN_FAILED",
-                category: "COMMUTER_ROUTE",
-                routeId: req.params.routeId,
-                status: "FAILED",
-                createdAt: new Date(),
-                metadata: {
-                    error: error.message,
-                    attemptedAt: new Date()
-                }
-            });
-        } catch (logError) {
-            console.error("[v0] Failed to log route join error:", logError);
-        }
-        
+        console.error("Error joining route:", error);
         res.status(500).json({
             success: false,
             message: "Error joining route",
@@ -3777,7 +3729,6 @@ export const leaveRoute = async (req, res) => {
         const { routeId } = req.params;
         const userId = req.userId;
         
-        // Validate route ID
         if (!routeId) {
             return res.status(400).json({
                 success: false,
@@ -3785,9 +3736,6 @@ export const leaveRoute = async (req, res) => {
             });
         }
         
-        console.log(`[v0] User ${userId} attempting to leave route ${routeId}`);
-        
-        // Check if route exists
         const route = await B2CPartnerRoute.findById(routeId);
         if (!route) {
             return res.status(404).json({
@@ -3796,139 +3744,39 @@ export const leaveRoute = async (req, res) => {
             });
         }
         
-        // Find active membership - try multiple query patterns
-        let membership = await Transaction.findOne({
-            userId: userId,
-            type: "ROUTE_MEMBERSHIP",
-            category: "COMMUTER_ROUTE",
-            'metadata.routeId': routeId,
-            status: 'ACTIVE'
-        });
+        // Check membership in the route's members array
+        const activeMember = (route.members || []).find(
+            m => m.userId && m.userId.toString() === userId.toString() && m.status === 'ACTIVE'
+        );
         
-        // Try with top-level routeId field (joinRoute stores it there)
-        if (!membership) {
-            membership = await Transaction.findOne({
-                userId: userId,
-                type: "ROUTE_MEMBERSHIP",
-                category: "COMMUTER_ROUTE",
-                routeId: routeId,
-                status: { $in: ['ACTIVE', 'PENDING'] }
-            });
-        }
-        
-        // Try with routeId as string match if ObjectId didn't work
-        if (!membership) {
-            membership = await Transaction.findOne({
-                userId: userId,
-                type: "ROUTE_MEMBERSHIP",
-                category: "COMMUTER_ROUTE",
-                'metadata.routeId': routeId.toString(),
-                status: { $in: ['ACTIVE', 'PENDING'] }
-            });
-        }
-        
-        // Also try checking the route's members array
-        if (!membership) {
-            const routeWithMember = await B2CPartnerRoute.findOne({
-                _id: routeId,
-                'members.userId': userId,
-                'members.status': 'ACTIVE'
-            });
-            if (routeWithMember) {
-                // Create a mock membership object for the rest of the logic
-                membership = { _id: `route-member-${userId}`, metadata: {} };
-            }
-        }
-        
-        if (!membership) {
+        if (!activeMember) {
             return res.status(400).json({
                 success: false,
                 message: "User is not a member of this route"
             });
         }
         
-        // Update membership status to LEFT
-        await Transaction.findByIdAndUpdate(membership._id, {
-            status: 'LEFT',
-            leftAt: new Date(),
-            metadata: {
-                ...membership.metadata,
-                leftAt: new Date(),
-                reason: 'User left route'
+        // Update the member status to LEFT and increment available seats
+        await B2CPartnerRoute.updateOne(
+            { _id: routeId, 'members.userId': userId, 'members.status': 'ACTIVE' },
+            {
+                $set: { 'members.$.status': 'LEFT' },
+                $inc: { availableSeats: 1 }
             }
-        });
-        
-        // Update route available seats (add back the seat)
-        await B2CPartnerRoute.findByIdAndUpdate(routeId, {
-            $inc: { availableSeats: 1 },
-            $pull: {
-                members: {
-                    userId: userId,
-                    status: 'ACTIVE'
-                }
-            }
-        });
-        
-        // Create notification for route provider
-        await Transaction.create({
-            userId: route.b2cPartnerId,
-            type: "ROUTE_MEMBER_LEFT",
-            category: "PROVIDER_NOTIFICATION",
-            memberId: userId,
-            routeId: routeId,
-            status: "SENT",
-            createdAt: new Date(),
-            metadata: {
-                routeName: `${route.fromLocation} to ${route.toLocation}`,
-                memberId: userId,
-                action: "LEFT",
-                membershipDuration: {
-                    joinedAt: membership.joinedAt,
-                    leftAt: new Date()
-                }
-            }
-        });
-        
-        console.log(`[v0] User ${userId} successfully left route ${routeId}`);
+        );
         
         res.status(200).json({
             success: true,
             message: "Successfully left route",
-            membershipId: membership._id,
             routeInfo: {
                 routeId: route._id,
                 routeName: `${route.fromLocation} to ${route.toLocation}`,
-                fromLocation: route.fromLocation,
-                toLocation: route.toLocation,
-                leftAt: new Date(),
-                membershipDuration: {
-                    joinedAt: membership.joinedAt,
-                    leftAt: new Date()
-                }
+                leftAt: new Date()
             }
         });
         
     } catch (error) {
-        console.error("[v0] Error leaving route:", error);
-        
-        // Log failed leave attempt
-        try {
-            await Transaction.create({
-                userId: req.userId,
-                type: "ROUTE_LEAVE_FAILED",
-                category: "COMMUTER_ROUTE",
-                routeId: req.params.routeId,
-                status: "FAILED",
-                createdAt: new Date(),
-                metadata: {
-                    error: error.message,
-                    attemptedAt: new Date()
-                }
-            });
-        } catch (logError) {
-            console.error("[v0] Failed to log route leave error:", logError);
-        }
-        
+        console.error("Error leaving route:", error);
         res.status(500).json({
             success: false,
             message: "Error leaving route",

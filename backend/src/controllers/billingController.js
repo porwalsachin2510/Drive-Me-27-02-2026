@@ -158,16 +158,31 @@ export const getInvoices = async (req, res) => {
                     });
                 });
             } else {
-                // Generate monthly invoices based on contract dates
-                const monthlyValue = contract.financials?.monthlyValue || 0;
-                if (monthlyValue > 0) {
+                // Generate invoices based on contract financials
+                const totalAmount = contract.financials?.totalAmount || 0;
+                const duration = contract.rentalPeriod?.duration || 1;
+                const monthlyValue = totalAmount > 0 ? Math.round((totalAmount / Math.max(duration, 1)) * 100) / 100 : 0;
+                const invoiceAmount = monthlyValue || totalAmount;
+                
+                // Compute billing period
+                const startDate = contract.rentalPeriod?.startDate;
+                const endDate = contract.rentalPeriod?.endDate;
+                let billingPeriod = '';
+                if (startDate && endDate) {
+                    const startStr = new Date(startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    const endStr = new Date(endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    billingPeriod = `${startStr} - ${endStr}`;
+                }
+
+                if (invoiceAmount > 0) {
                     invoices.push({
                         _id: `${contract._id}-monthly`,
                         invoiceNumber: `INV-${contract.contractNumber || contract._id.toString().slice(-6)}-M`,
                         contractId: contract._id,
                         contractNumber: contract.contractNumber,
                         fleetOwner: contract.fleetOwnerId?.companyName || contract.fleetOwnerId?.fullName,
-                        amount: monthlyValue,
+                        amount: invoiceAmount,
+                        billingPeriod: billingPeriod,
                         date: new Date(),
                         status: contract.status === "ACTIVE" ? "PENDING" : "DRAFT",
                         method: "N/A"
@@ -208,13 +223,15 @@ export const getB2BPartnerInvoices = async (req, res) => {
 
         const invoices = [];
         for (const contract of contracts) {
-            const monthlyValue = contract.financials?.monthlyValue || contract.financials?.totalValue || contract.financials?.estimatedValue || 0;
+            const totalAmount = contract.financials?.totalAmount || 0;
+            const duration = contract.rentalPeriod?.duration || 1;
+            const monthlyValue = totalAmount > 0 ? Math.round((totalAmount / Math.max(duration, 1)) * 100) / 100 : 0;
             const currency = contract.financials?.currency || 'KWD';
             const corporateName = contract.corporateOwnerId?.companyName || contract.corporateOwnerId?.fullName || 'N/A';
 
-            // Compute billing period from contract dates
-            const contractStart = contract.startDate || contract.createdAt;
-            const contractEnd = contract.endDate;
+            // Compute billing period from rentalPeriod
+            const contractStart = contract.rentalPeriod?.startDate || contract.createdAt;
+            const contractEnd = contract.rentalPeriod?.endDate;
             let contractPeriodStr = '';
             if (contractStart && contractEnd) {
                 const startStr = new Date(contractStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -222,33 +239,34 @@ export const getB2BPartnerInvoices = async (req, res) => {
                 contractPeriodStr = `${startStr} - ${endStr}`;
             }
 
-            if (contract.paymentHistory && contract.paymentHistory.length > 0) {
-                contract.paymentHistory.forEach((payment, idx) => {
-                    const payDate = payment.paidDate || payment.createdAt;
-                    const payMonth = payDate ? new Date(payDate) : new Date();
-                    const billingPeriod = `${payMonth.toLocaleString('default', { month: 'short' })} ${payMonth.getFullYear()}`;
+            // Generate invoices from installments
+            if (contract.financials?.installments && contract.financials.installments.length > 0) {
+                contract.financials.installments.forEach((installment, idx) => {
+                    const dueDate = installment.dueDate || contract.createdAt;
+                    const dueMonth = dueDate ? new Date(dueDate) : new Date();
+                    const billingPeriod = `${dueMonth.toLocaleString('default', { month: 'short' })} ${dueMonth.getFullYear()}`;
                     
                     invoices.push({
-                        _id: `${contract._id}-${idx}`,
+                        _id: `${contract._id}-inst-${idx}`,
                         invoiceNumber: `B2B-INV-${contract.contractNumber || contract._id.toString().slice(-6)}-${idx + 1}`,
                         contractId: contract._id,
                         contractNumber: contract.contractNumber,
                         client: corporateName,
                         corporateName: corporateName,
-                        amount: payment.amount,
+                        amount: installment.amount || monthlyValue,
                         currency: currency,
                         billingPeriod: billingPeriod,
-                        date: payDate,
-                        createdAt: payDate,
-                        status: payment.status || "PAID",
-                        method: payment.method || "Online",
+                        date: installment.paidAt || dueDate,
+                        createdAt: installment.paidAt || dueDate,
+                        status: installment.status || "PENDING",
+                        method: "Online",
                     });
                 });
             }
 
             // Current month invoice
             const now = new Date();
-            const currentBillingPeriod = `${now.toLocaleString('default', { month: 'short' })} ${now.getFullYear()}`;
+            const currentBillingPeriod = contractPeriodStr || `${now.toLocaleString('default', { month: 'short' })} ${now.getFullYear()}`;
             
             invoices.push({
                 _id: `${contract._id}-current`,
@@ -257,7 +275,7 @@ export const getB2BPartnerInvoices = async (req, res) => {
                 contractNumber: contract.contractNumber,
                 client: corporateName,
                 corporateName: corporateName,
-                amount: monthlyValue,
+                amount: monthlyValue || totalAmount,
                 currency: currency,
                 billingPeriod: currentBillingPeriod,
                 date: now,

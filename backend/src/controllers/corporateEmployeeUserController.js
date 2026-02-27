@@ -424,12 +424,12 @@ export const manageBooking = async (req, res) => {
         }
 
         // Validate dates is an array for bulk operations
-        const datesArray = Array.isArray(dates) ? dates : (dates ? [dates] : []);
+        const datesArray = Array.isArray(dates) ? dates : (typeof dates === 'string' ? [dates] : []);
 
-        if (datesArray.length === 0 && action !== "cancel") {
+        if (datesArray.length === 0) {
             return res.status(400).json({
                 success: false,
-                message: "No dates provided"
+                message: "No dates provided for bulk booking operation"
             });
         }
 

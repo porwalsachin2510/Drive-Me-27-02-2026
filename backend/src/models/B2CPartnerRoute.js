@@ -114,6 +114,22 @@ const b2cPartnerRouteSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "B2CPartnerTrip",
         }],
+        // Route members (commuters who joined)
+        members: [{
+            userId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "User",
+            },
+            joinedAt: {
+                type: Date,
+                default: Date.now,
+            },
+            status: {
+                type: String,
+                enum: ["ACTIVE", "LEFT", "REMOVED"],
+                default: "ACTIVE",
+            },
+        }],
         // Booking statistics
         bookingStats: {
             totalBookings: {

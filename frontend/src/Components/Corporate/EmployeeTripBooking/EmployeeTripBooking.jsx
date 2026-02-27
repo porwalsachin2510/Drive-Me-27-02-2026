@@ -97,20 +97,24 @@ function EmployeeTripBooking() {
   const fetchMyBookings = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/corporate-employee-users/dashboard");
-      const dashboardData = response.data?.data;
-      // Combine todayTrips and bookings for comprehensive view
-      const todayTrips = dashboardData?.todayTrips || [];
-      const bookingsData = dashboardData?.bookings || dashboardData?.upcomingTrips || [];
-      const allBookings = [...todayTrips, ...bookingsData];
-      // Deduplicate
-      const uniqueBookings = allBookings.filter((b, i, self) => 
-        i === self.findIndex(t => t._id === b._id)
-      );
-      setMyBookings(uniqueBookings);
+      // Use the trips/my-bookings endpoint which only returns trips where this employee is a passenger
+      const response = await api.get("/trips/my-bookings");
+      const bookingsData = response.data?.data?.bookings || response.data?.data || [];
+      setMyBookings(Array.isArray(bookingsData) ? bookingsData : []);
     } catch (error) {
       console.error("Error fetching bookings:", error);
-      setMyBookings([]);
+      // Fallback to dashboard
+      try {
+        const response = await api.get("/corporate-employee-users/dashboard");
+        const dashboardData = response.data?.data;
+        const todayTrips = dashboardData?.todayTrips || [];
+        const bookings = dashboardData?.bookings || [];
+        const all = [...todayTrips, ...bookings];
+        const unique = all.filter((b, i, self) => i === self.findIndex(t => t._id === b._id));
+        setMyBookings(unique);
+      } catch {
+        setMyBookings([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -156,9 +160,35 @@ function EmployeeTripBooking() {
       pickupPoint: "",
       pickupTime: "",
       seatNumber: 1,
-      useMonthlyPass: false
+      useMonthlyPass: false  // Always false - corporate employees don't need monthly passes
     });
     setShowBookingModal(true);
+  };
+
+  // Get pickup options for a trip
+  const getPickupOptions = (trip) => {
+    const options = [];
+    const stopPoints = trip.stopPoints || trip.routeStopPoints || trip.routeId?.stopPoints || [];
+    
+    // Add stop points
+    stopPoints.forEach((stop) => {
+      if (stop.location) {
+        options.push({ location: stop.location, time: stop.time || '' });
+      }
+    });
+    
+    // Always add from/to as fallback options if no stop points or they don't include from/to
+    const fromLoc = trip.fromLocation;
+    const toLoc = trip.toLocation;
+    
+    if (fromLoc && !options.find(o => o.location === fromLoc)) {
+      options.unshift({ location: fromLoc, time: trip.startTime || '', label: 'Start' });
+    }
+    if (toLoc && !options.find(o => o.location === toLoc)) {
+      options.push({ location: toLoc, time: trip.endTime || '', label: 'End' });
+    }
+    
+    return options;
   };
 
   const handleBookingSubmit = async (e) => {
@@ -183,24 +213,13 @@ function EmployeeTripBooking() {
     }
 
     try {
-      // Use the corporate employee booking management endpoint
-      await api.post("/corporate-employee-users/booking", {
-        action: "cancel",
-        tripId: tripId
-      });
+      // Use the trip cancel endpoint which removes the employee from the passengers array
+      await api.delete(`/trips/${tripId}/cancel`);
       fetchMyBookings();
       alert("Booking cancelled successfully!");
     } catch (error) {
       console.error("Error canceling booking:", error);
-      // Fallback: try the trip cancel endpoint
-      try {
-        await api.delete(`/trips/${tripId}/cancel`);
-        fetchMyBookings();
-        alert("Booking cancelled successfully!");
-      } catch (fallbackError) {
-        console.error("Fallback cancel also failed:", fallbackError);
-        alert(fallbackError.response?.data?.message || error.response?.data?.message || "Failed to cancel booking");
-      }
+      alert(error.response?.data?.message || "Failed to cancel booking");
     }
   };
 
@@ -470,23 +489,11 @@ function EmployeeTripBooking() {
                   required
                 >
                   <option value="">Select pickup point</option>
-                  {/* Use stopPoints from enriched trip data, or fallback to routeId.stopPoints */}
-                  {(selectedTrip.stopPoints || selectedTrip.routeStopPoints || selectedTrip.routeId?.stopPoints || []).map((stop, index) => (
-                    <option key={index} value={stop.location}>
-                      {stop.location} {stop.time ? `(${stop.time})` : ''}
+                  {getPickupOptions(selectedTrip).map((opt, index) => (
+                    <option key={index} value={opt.location}>
+                      {opt.location} {opt.time ? `(${opt.time})` : ''} {opt.label ? `- ${opt.label}` : ''}
                     </option>
                   ))}
-                  {/* If no stop points, show from/to as pickup options */}
-                  {!(selectedTrip.stopPoints?.length || selectedTrip.routeStopPoints?.length || selectedTrip.routeId?.stopPoints?.length) && (
-                    <>
-                      {selectedTrip.fromLocation && (
-                        <option value={selectedTrip.fromLocation}>{selectedTrip.fromLocation} (Start)</option>
-                      )}
-                      {selectedTrip.toLocation && (
-                        <option value={selectedTrip.toLocation}>{selectedTrip.toLocation} (End)</option>
-                      )}
-                    </>
-                  )}
                 </select>
               </div>
 
@@ -500,17 +507,6 @@ function EmployeeTripBooking() {
                   onChange={(e) => setBookingData(prev => ({ ...prev, seatNumber: parseInt(e.target.value) }))}
                   required
                 />
-              </div>
-
-              <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={bookingData.useMonthlyPass}
-                    onChange={(e) => setBookingData(prev => ({ ...prev, useMonthlyPass: e.target.checked }))}
-                  />
-                  Use Monthly Pass (if available)
-                </label>
               </div>
 
               <div className="modal-actions">

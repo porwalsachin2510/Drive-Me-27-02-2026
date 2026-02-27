@@ -32,7 +32,20 @@ export default function FindRoutes() {
       fetchRoutes();
     } catch (error) {
       console.error("Error joining route:", error);
-      alert("Failed to join route");
+      alert(error.response?.data?.message || "Failed to join route");
+    }
+  };
+
+  const handleLeaveRoute = async (routeId) => {
+    if (!window.confirm("Are you sure you want to leave this route?")) return;
+    try {
+      await api.post(`/commuter/routes/${routeId}/leave`);
+      alert("Successfully left route!");
+      fetchRoutes();
+    } catch (error) {
+      console.error("Error leaving route:", error);
+      const msg = error.response?.data?.message || "Failed to leave route";
+      alert(msg);
     }
   };
 
@@ -42,9 +55,14 @@ export default function FindRoutes() {
     const end = (route.endPoint || '').toLowerCase();
     const query = searchQuery.toLowerCase();
     const matchesSearch = !searchQuery || name.includes(query) || start.includes(query) || end.includes(query);
-    const matchesStatus = filterStatus === "all" || route.status === filterStatus;
-    return matchesSearch && matchesStatus;
+    
+    if (filterStatus === "all") return matchesSearch;
+    if (filterStatus === "active") return matchesSearch && route.isMember;
+    if (filterStatus === "available") return matchesSearch && !route.isMember;
+    return matchesSearch;
   });
+
+  const activeCount = routes.filter(r => r.isMember).length;
 
   if (loading) {
     return (
@@ -58,7 +76,7 @@ export default function FindRoutes() {
   return (
     <div className="find-routes-section">
       <h2>My Active Routes</h2>
-      <p className="routes-count">{routes.filter(r => r.status === 'active').length} Active</p>
+      <p className="routes-count">{activeCount} Active</p>
 
       {/* Search and Filter */}
       <div className="routes-controls">
@@ -78,9 +96,8 @@ export default function FindRoutes() {
             className="filter-select"
           >
             <option value="all">All Routes</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="completed">Completed</option>
+            <option value="active">My Routes</option>
+            <option value="available">Available</option>
           </select>
         </div>
       </div>
@@ -89,16 +106,15 @@ export default function FindRoutes() {
       <div className="routes-list">
         {filteredRoutes.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-icon">🚌</div>
             <p className="empty-title">
               {searchQuery || filterStatus !== "all" 
                 ? "No routes found matching your criteria." 
-                : "You haven't joined any partner routes yet."}
+                : "No partner routes available yet."}
             </p>
             <p className="empty-subtitle">
               {searchQuery || filterStatus !== "all"
                 ? "Try adjusting your search or filter."
-                : "Search for a route on the home page to join!"}
+                : "Check back later for available routes!"}
             </p>
           </div>
         ) : (
@@ -107,12 +123,12 @@ export default function FindRoutes() {
               <div className="route-header">
                 <div className="route-info">
                   <h3>{route.name}</h3>
-                  <span className={`route-status ${route.status}`}>
-                    {route.status}
+                  <span className={`route-status ${route.isMember ? 'active' : 'available'}`}>
+                    {route.isMember ? 'Active' : 'Available'}
                   </span>
                 </div>
                 <div className="route-price">
-                  KWD {route.price}
+                  KWD {route.price || 0}
                 </div>
               </div>
 
@@ -121,7 +137,7 @@ export default function FindRoutes() {
                   <div className="route-point">
                     <strong>From:</strong> {route.startPoint}
                   </div>
-                  <div className="route-arrow">→</div>
+                  <div className="route-arrow">&#8594;</div>
                   <div className="route-point">
                     <strong>To:</strong> {route.endPoint}
                   </div>
@@ -130,11 +146,11 @@ export default function FindRoutes() {
                 <div className="route-meta">
                   <div className="meta-item">
                     <span className="meta-label">Distance:</span>
-                    <span className="meta-value">{route.distance && route.distance !== 'N/A' ? route.distance : 'Not available'}</span>
+                    <span className="meta-value">{route.distance || 'Not available'}</span>
                   </div>
                   <div className="meta-item">
                     <span className="meta-label">Duration:</span>
-                    <span className="meta-value">{route.estimatedTime && route.estimatedTime !== 'N/A' ? route.estimatedTime : 'Not available'}</span>
+                    <span className="meta-value">{route.estimatedTime || 'Not available'}</span>
                   </div>
                   <div className="meta-item">
                     <span className="meta-label">Partner:</span>
@@ -145,17 +161,33 @@ export default function FindRoutes() {
                 <div className="route-schedule">
                   <div className="schedule-item">
                     <span className="schedule-label">Departure:</span>
-                    <span className="schedule-time">{route.departureTime && route.departureTime !== 'N/A' ? route.departureTime : 'Not set'}</span>
+                    <span className="schedule-time">{route.departureTime || 'Not set'}</span>
                   </div>
                   <div className="schedule-item">
                     <span className="schedule-label">Arrival:</span>
-                    <span className="schedule-time">{route.arrivalTime && route.arrivalTime !== 'N/A' ? route.arrivalTime : 'Not set'}</span>
+                    <span className="schedule-time">{route.arrivalTime || 'Not set'}</span>
                   </div>
+                </div>
+
+                {route.operatingDays && route.operatingDays.length > 0 && (
+                  <div className="route-days">
+                    <span className="days-label">Operating Days:</span>
+                    <div className="days-list">
+                      {route.operatingDays.map((day, idx) => (
+                        <span key={idx} className="day-badge">{day}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="route-seats-info">
+                  <span className="seats-label">Available Seats:</span>
+                  <span className="seats-value">{route.availableSeats} / {route.totalSeats}</span>
                 </div>
               </div>
 
               <div className="route-actions">
-                {route.status === 'active' ? (
+                {route.isMember ? (
                   <button
                     className="leave-btn"
                     onClick={() => handleLeaveRoute(route._id)}
@@ -166,8 +198,9 @@ export default function FindRoutes() {
                   <button
                     className="join-btn"
                     onClick={() => handleJoinRoute(route._id)}
+                    disabled={route.availableSeats <= 0}
                   >
-                    Join Route
+                    {route.availableSeats <= 0 ? 'Full' : 'Join Route'}
                   </button>
                 )}
               </div>
@@ -177,17 +210,4 @@ export default function FindRoutes() {
       </div>
     </div>
   );
-
-  async function handleLeaveRoute(routeId) {
-    if (!window.confirm("Are you sure you want to leave this route?")) return;
-    try {
-      await api.post(`/commuter/routes/${routeId}/leave`);
-      alert("Successfully left route!");
-      fetchRoutes();
-    } catch (error) {
-      console.error("Error leaving route:", error);
-      const msg = error.response?.data?.message || "Failed to leave route";
-      alert(msg);
-    }
-  }
 }

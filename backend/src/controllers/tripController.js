@@ -454,16 +454,20 @@ export const bookTripSeat = async (req, res) => {
             }
         }
 
-        // Handle monthly pass
+        // Handle monthly pass - only check if explicitly requested
         let monthlyPass = null;
-        if (useMonthlyPass) {
-            monthlyPass = await MonthlyPass.findOne({
-                employeeId,
-                status: "ACTIVE",
-                validFrom: { $lte: trip.tripDate },
-                validTo: { $gte: trip.tripDate },
-                routeId: trip.routeId
-            });
+        if (useMonthlyPass === true) {
+            try {
+                monthlyPass = await MonthlyPass.findOne({
+                    employeeId,
+                    status: "ACTIVE",
+                    validFrom: { $lte: trip.tripDate },
+                    validTo: { $gte: trip.tripDate },
+                    routeId: trip.routeId
+                });
+            } catch (e) {
+                // MonthlyPass collection may not exist
+            }
 
             if (!monthlyPass) {
                 return res.status(400).json({
