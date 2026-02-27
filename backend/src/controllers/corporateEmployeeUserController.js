@@ -1,9 +1,10 @@
 import User from "../models/User.js";
 import CorporateEmployee from "../models/CorporateEmployee.js";
 import Contract from "../models/Contract.js";
-import CorporateBooking from "../models/CorporateBooking.js";
 import Route from "../models/Route.js";
-import VehicleAssignment from "../models/VehicleAssignment.js";
+import Trip from "../models/Trip.js";
+import Vehicle from "../models/Vehicle.js";
+import Driver from "../models/Driver.js";
 import { sendEmail } from "../Services/emailService.js";
 
 // Register corporate employee
@@ -140,14 +141,14 @@ export const getEmployeeDashboard = async (req, res) => {
             });
         }
 
-        // Get travel history - returns array of trips
-        const historyData = await getEmployeeTravelHistoryDetails(userId, period);
+        // Get travel history from trips collection
+        const historyData = await getEmployeeTravelHistoryFromTrips(userId, employee, period);
 
-        // Get upcoming trips - returns array
-        const upcomingTripsData = await getUpcomingTrips(userId);
+        // Get upcoming trips from trips collection
+        const upcomingTripsData = await getUpcomingTripsFromTrips(userId, employee);
 
-        // Get assigned vehicle details
-        const vehicleInfo = await getAssignedVehicleInfo(userId);
+        // Get assigned vehicle details from contract
+        const vehicleInfo = await getAssignedVehicleInfoFromContract(employee);
 
         res.status(200).json({
             success: true,
@@ -206,35 +207,86 @@ export const getAssignedRoute = async (req, res) => {
         // Get schedule details
         const schedule = assignedRoute?._id ? await getRouteSchedule(assignedRoute._id) : { schedule: [] };
 
-        // Get vehicle and driver info from VehicleAssignment
+        // Get vehicle and driver info from Contract's embedded assignedVehicles
         let vehicleInfo = null;
         let driverInfo = null;
         
         if (employee.companyId) {
             try {
-                const contracts = await Contract.find({ corporateOwnerId: employee.companyId }).distinct('_id');
-                const vehicleAssignment = await VehicleAssignment.findOne({
-                    contractId: { $in: contracts }
-                }).populate('vehicleId', 'make model licensePlate vehicleType capacity')
-                  .populate('driverId', 'fullName email contactNumber');
+                // Find active contract for this corporate
+                const contract = await Contract.findOne({ 
+                    corporateOwnerId: employee.companyId,
+                    status: 'ACTIVE'
+                });
                 
-                if (vehicleAssignment) {
-                    vehicleInfo = vehicleAssignment.vehicleId ? {
-                        make: vehicleAssignment.vehicleId.make,
-                        model: vehicleAssignment.vehicleId.model,
-                        licensePlate: vehicleAssignment.vehicleId.licensePlate,
-                        vehicleType: vehicleAssignment.vehicleId.vehicleType,
-                        capacity: vehicleAssignment.vehicleId.capacity
-                    } : null;
+                if (contract && contract.vehicles && contract.vehicles.length > 0) {
+                    // Find the assignment that matches the employee's route
+                    let foundAssignment = null;
                     
-                    driverInfo = vehicleAssignment.driverId ? {
-                        fullName: vehicleAssignment.driverId.fullName,
-                        email: vehicleAssignment.driverId.email,
-                        phone: vehicleAssignment.driverId.contactNumber
-                    } : null;
+                    for (const vehicleGroup of contract.vehicles) {
+                        if (vehicleGroup.assignedVehicles && vehicleGroup.assignedVehicles.length > 0) {
+                            for (const assignment of vehicleGroup.assignedVehicles) {
+                                // Match by routeDetails if available, else take first active assignment
+                                if (assignment.status === 'ACTIVE') {
+                                    if (assignedRoute?._id && assignment.routeDetails && 
+                                        assignment.routeDetails.toString() === assignedRoute._id.toString()) {
+                                        foundAssignment = assignment;
+                                        break;
+                                    } else if (!foundAssignment) {
+                                        foundAssignment = assignment;
+                                    }
+                                }
+                            }
+                            if (foundAssignment && assignedRoute?._id && foundAssignment.routeDetails &&
+                                foundAssignment.routeDetails.toString() === assignedRoute._id.toString()) {
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (foundAssignment) {
+                        // Fetch vehicle details
+                        if (foundAssignment.vehicleId) {
+                            const vehicle = await Vehicle.findById(foundAssignment.vehicleId);
+                            if (vehicle) {
+                                vehicleInfo = {
+                                    vehicleName: vehicle.vehicleName,
+                                    registrationNumber: vehicle.registrationNumber,
+                                    vehicleCategory: vehicle.vehicleCategory,
+                                    capacity: vehicle.capacity?.seatingCapacity || 0,
+                                    photos: vehicle.photos || []
+                                };
+                            }
+                        }
+                        
+                        // Fetch driver details - driver is stored in Driver model (B2B driver)
+                        if (foundAssignment.driverId) {
+                            const driverModel = foundAssignment.driverModel || 'Driver';
+                            if (driverModel === 'Driver') {
+                                const driver = await Driver.findById(foundAssignment.driverId);
+                                if (driver) {
+                                    driverInfo = {
+                                        fullName: driver.name,
+                                        email: driver.email,
+                                        phone: driver.phone
+                                    };
+                                }
+                            } else {
+                                // Try User model for corporate drivers
+                                const driver = await User.findById(foundAssignment.driverId);
+                                if (driver) {
+                                    driverInfo = {
+                                        fullName: driver.fullName,
+                                        email: driver.email,
+                                        phone: driver.whatsappNumber || driver.contactNumber || ''
+                                    };
+                                }
+                            }
+                        }
+                    }
                 }
             } catch (err) {
-                console.error("Error fetching vehicle assignment:", err);
+                console.error("Error fetching vehicle/driver from contract:", err);
             }
         }
 
@@ -344,26 +396,34 @@ export const markNotTravelingToday = async (req, res) => {
             });
         }
 
-        // Cancel today's bookings for this employee
+        // Mark not traveling for today's trips
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
 
-        const cancelResult = await CorporateBooking.updateMany(
-            {
-                passengerId: employee._id,
-                travelDate: { $gte: today, $lt: tomorrow },
-                status: { $in: ["SCHEDULED", "CONFIRMED", "BOOKED"] }
-            },
-            {
-                $set: {
-                    status: "CANCELLED",
-                    cancellationReason: reason || "Employee reported not traveling",
-                    cancelledAt: new Date()
-                }
+        // Find today's trips for this employee's corporate and mark their passenger entry as NO_SHOW
+        const todayTrips = await Trip.find({
+            corporateId: employee.companyId,
+            tripDate: { $gte: today, $lt: tomorrow },
+            status: { $in: ["SCHEDULED", "IN_PROGRESS"] }
+        });
+
+        let cancelCount = 0;
+        for (const trip of todayTrips) {
+            // Check if employee is a passenger
+            const passengerIdx = trip.passengers?.findIndex(p => 
+                p.employeeId && p.employeeId.toString() === userId.toString()
+            );
+            
+            if (passengerIdx >= 0) {
+                trip.passengers[passengerIdx].bookingStatus = 'NO_SHOW';
+                await trip.save();
+                cancelCount++;
             }
-        );
+        }
+
+        const cancelResult = { modifiedCount: cancelCount };
 
         // Also record in the employee's attendance
         if (!employee.attendance) employee.attendance = {};
@@ -413,35 +473,44 @@ export const rateTrip = async (req, res) => {
             });
         }
 
-        // Update the booking with feedback data
-        const booking = await CorporateBooking.findOneAndUpdate(
-            {
-                _id: tripId,
-                passengerId: employee._id
-            },
-            {
-                $set: {
-                    "feedback.rating": rating,
-                    "feedback.comment": feedback || "",
-                    "feedback.complaints": complaints || [],
-                    "feedback.ratedAt": new Date()
-                }
-            },
-            { new: true }
-        );
+        // Find the trip and update feedback in employee record
+        const trip = await Trip.findById(tripId);
 
-        if (!booking) {
+        if (!trip) {
             return res.status(404).json({
                 success: false,
-                message: "Trip not found or you are not the passenger"
+                message: "Trip not found"
             });
         }
+
+        // Store feedback in employee's feedback history
+        if (!employee.feedback) employee.feedback = { totalRides: 0, averageRating: 0, feedbackHistory: [] };
+        if (!employee.feedback.feedbackHistory) employee.feedback.feedbackHistory = [];
+        
+        employee.feedback.feedbackHistory.push({
+            tripId,
+            rating,
+            comment: feedback || "",
+            complaints: complaints || [],
+            ratedAt: new Date(),
+            route: `${trip.fromLocation} → ${trip.toLocation}`,
+            tripDate: trip.tripDate
+        });
+        
+        // Recalculate average
+        const allRatings = employee.feedback.feedbackHistory.filter(f => f.rating);
+        employee.feedback.averageRating = allRatings.length > 0 
+            ? allRatings.reduce((sum, f) => sum + f.rating, 0) / allRatings.length 
+            : 0;
+        employee.feedback.totalRides = employee.feedback.feedbackHistory.length;
+        
+        await employee.save();
 
         res.status(201).json({
             success: true,
             message: "Trip rated successfully",
             data: {
-                tripId: booking._id,
+                tripId: trip._id,
                 rating,
                 feedback,
                 ratedAt: new Date()
@@ -507,230 +576,184 @@ export const requestRouteChange = async (req, res) => {
 };
 
 // Helper functions
-const getEmployeeTravelHistory = async (userId, period) => {
-    try {
-        const employee = await CorporateEmployee.findOne({ userId })
-            .populate('companyId', 'companyName');
 
-        if (!employee) {
+// Get employee travel history from trips collection
+const getEmployeeTravelHistoryFromTrips = async (userId, employee, period) => {
+    try {
+        if (!employee?.companyId) return [];
+
+        const today = new Date();
+        let startDate;
+        
+        switch (period) {
+            case 'week':
+                startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                break;
+            case 'month':
+                startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                break;
+            default:
+                startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+        }
+
+        // Query trips collection for this corporate's trips
+        const trips = await Trip.find({
+            corporateId: employee.companyId,
+            tripDate: { $gte: startDate, $lte: today },
+            status: { $in: ['COMPLETED', 'CANCELLED', 'SCHEDULED', 'IN_PROGRESS'] }
+        })
+        .populate('routeId', 'fromLocation toLocation')
+        .populate('vehicleId', 'vehicleName registrationNumber vehicleCategory')
+        .populate('driverId', 'fullName whatsappNumber')
+        .sort({ tripDate: -1 });
+
+        // Map trips to display format
+        return trips.map(trip => {
+            // Check if this employee is a passenger in the trip
+            const passengerEntry = trip.passengers?.find(p => 
+                p.employeeId && p.employeeId.toString() === userId.toString()
+            );
+            
             return {
-                totalTrips: 0,
-                presentTrips: 0,
-                absentTrips: 0,
-                onTimeRate: 0
+                _id: trip._id,
+                date: trip.tripDate,
+                travelDate: trip.tripDate,
+                fromLocation: trip.fromLocation || trip.routeId?.fromLocation || 'Unknown',
+                toLocation: trip.toLocation || trip.routeId?.toLocation || 'Unknown',
+                route: `${trip.fromLocation || 'Unknown'} → ${trip.toLocation || 'Unknown'}`,
+                status: trip.status,
+                tripType: trip.tripType,
+                direction: trip.direction,
+                startTime: trip.startTime,
+                endTime: trip.endTime,
+                attendance: passengerEntry ? 
+                    (passengerEntry.bookingStatus === 'NO_SHOW' ? 'ABSENT' : 'PRESENT') : 
+                    (trip.status === 'COMPLETED' ? 'PRESENT' : 'SCHEDULED'),
+                vehicleName: trip.vehicleId?.vehicleName || 'Not assigned',
+                vehicleNumber: trip.vehicleId?.registrationNumber || 'Not assigned',
+                driverName: trip.driverId?.fullName || 'Not assigned',
+                driverContact: trip.driverId?.whatsappNumber || 'Not available'
             };
-        }
-
-        // Calculate date range based on period
-        const today = new Date();
-        let startDate;
-        
-        switch (period) {
-            case 'week':
-                startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-                break;
-            case 'month':
-                startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-                break;
-            default:
-                startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-        }
-
-        // Get corporate bookings for this employee
-        const bookings = await CorporateBooking.find({
-            passengerId: userId,
-            travelDate: {
-                $gte: startDate,
-                $lte: today
-            }
-        }).populate('routeId', 'fromLocation toLocation');
-
-        const totalTrips = bookings.length;
-        const presentTrips = bookings.filter(booking => 
-            booking.bookingStatus === 'COMPLETED'
-        ).length;
-        const absentTrips = bookings.filter(booking => 
-            booking.bookingStatus === 'CANCELLED'
-        ).length;
-        
-        // Calculate on-time rate (assuming completed trips with ratings are on-time)
-        const onTimeTrips = bookings.filter(booking => 
-            booking.bookingStatus === 'COMPLETED' && booking.rating && booking.rating >= 4
-        ).length;
-        const onTimeRate = presentTrips > 0 ? (onTimeTrips / presentTrips) * 100 : 0;
-
-        return {
-            totalTrips,
-            presentTrips,
-            absentTrips,
-            onTimeRate: parseFloat(onTimeRate.toFixed(1))
-        };
+        });
 
     } catch (error) {
-        console.error("Error getting employee travel history:", error);
-        return {
-            totalTrips: 0,
-            presentTrips: 0,
-            absentTrips: 0,
-            onTimeRate: 0
-        };
-    }
-};
-
-// Get employee travel history with full trip details as array
-const getEmployeeTravelHistoryDetails = async (userId, period) => {
-    try {
-        const employee = await CorporateEmployee.findOne({ userId })
-            .populate('companyId', 'companyName');
-
-        if (!employee) {
-            return [];
-        }
-
-        // Calculate date range based on period
-        const today = new Date();
-        let startDate;
-        
-        switch (period) {
-            case 'week':
-                startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-                break;
-            case 'month':
-                startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-                break;
-            default:
-                startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-        }
-
-        // Get corporate bookings for this employee
-        const bookings = await CorporateBooking.find({
-            passengerId: userId,
-            travelDate: {
-                $gte: startDate,
-                $lte: today
-            }
-        }).populate('routeId', 'fromLocation toLocation')
-          .populate('driverId', 'fullName contactNumber')
-          .sort({ travelDate: -1 });
-
-        // Map bookings to trip format for history display
-        const trips = bookings.map(booking => ({
-            _id: booking._id,
-            date: booking.travelDate,
-            travelDate: booking.travelDate,
-            fromLocation: booking.routeId?.fromLocation || 'Unknown',
-            toLocation: booking.routeId?.toLocation || 'Unknown',
-            route: `${booking.routeId?.fromLocation || 'Unknown'} → ${booking.routeId?.toLocation || 'Unknown'}`,
-            status: booking.bookingStatus,
-            attendance: booking.bookingStatus === 'COMPLETED' ? 'PRESENT' : (booking.bookingStatus === 'CANCELLED' ? 'ABSENT' : 'SCHEDULED'),
-            rating: booking.feedback?.rating || null,
-            feedback: booking.feedback?.comment || null,
-            driverName: booking.driverId?.fullName || 'Not assigned',
-            driverContact: booking.driverId?.contactNumber || 'Not available'
-        }));
-
-        return trips;
-
-    } catch (error) {
-        console.error("Error getting employee travel history details:", error);
+        console.error("Error getting employee travel history from trips:", error);
         return [];
     }
 };
 
-const getUpcomingTrips = async (userId) => {
+// Get upcoming trips from trips collection
+const getUpcomingTripsFromTrips = async (userId, employee) => {
     try {
-        const employee = await CorporateEmployee.findOne({ userId })
-            .populate('transportDetails.assignedRoute', 'fromLocation toLocation stopPoints')
-            .populate('companyId', 'companyName');
+        if (!employee?.companyId) return { trips: [] };
 
-        if (!employee || !employee.transportDetails?.assignedRoute) {
-            return { trips: [] };
-        }
-
-        // Get upcoming trips for next 7 days
         const today = new Date();
+        today.setHours(0, 0, 0, 0);
         const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-        const bookings = await CorporateBooking.find({
-            passengerId: userId,
-            travelDate: {
-                $gte: today,
-                $lte: nextWeek
-            },
-            bookingStatus: { $in: ['CONFIRMED', 'IN_PROGRESS'] }
+        const trips = await Trip.find({
+            corporateId: employee.companyId,
+            tripDate: { $gte: today, $lte: nextWeek },
+            status: { $in: ['SCHEDULED', 'IN_PROGRESS'] }
         })
-        .populate('driverId', 'fullName contactNumber')
-        .populate('routeId', 'fromLocation toLocation')
-        .sort({ travelDate: 1, pickupLocation: 1 });
+        .populate('routeId', 'fromLocation toLocation stopPoints')
+        .populate('vehicleId', 'vehicleName registrationNumber vehicleCategory')
+        .populate('driverId', 'fullName whatsappNumber')
+        .sort({ tripDate: 1, startTime: 1 });
 
-        const trips = bookings.map(booking => ({
-            date: booking.travelDate.toISOString().split('T')[0],
-            time: booking.travelPath.find(path => path.isFromLocation)?.time || 'Not specified',
-            route: `${booking.routeId?.fromLocation || 'Unknown'} → ${booking.routeId?.toLocation || 'Unknown'}`,
-            vehicleNumber: booking.vehiclePlate || 'Not assigned',
-            driverName: booking.driverId?.fullName || 'Not assigned',
-            driverContact: booking.driverId?.contactNumber || booking.driverPhoneNumber || 'Not available',
-            bookingId: booking._id,
-            pickupLocation: booking.pickupLocation,
-            dropoffLocation: booking.dropoffLocation
+        const mappedTrips = trips.map(trip => ({
+            _id: trip._id,
+            date: trip.tripDate?.toISOString().split('T')[0],
+            tripDate: trip.tripDate,
+            startTime: trip.startTime,
+            endTime: trip.endTime,
+            fromLocation: trip.fromLocation || 'Unknown',
+            toLocation: trip.toLocation || 'Unknown',
+            route: `${trip.fromLocation || 'Unknown'} → ${trip.toLocation || 'Unknown'}`,
+            tripType: trip.tripType,
+            direction: trip.direction,
+            status: trip.status,
+            vehicleName: trip.vehicleId?.vehicleName || 'Not assigned',
+            vehicleNumber: trip.vehicleId?.registrationNumber || 'Not assigned',
+            driverName: trip.driverId?.fullName || 'Not assigned',
+            driverContact: trip.driverId?.whatsappNumber || 'Not available',
+            totalSeats: trip.totalSeats,
+            availableSeats: trip.availableSeats,
+            bookedSeats: trip.bookedSeats,
+            pickupLocation: employee.transportDetails?.pickupPoint || trip.fromLocation,
+            dropoffLocation: employee.transportDetails?.dropOffPoint || trip.toLocation
         }));
 
-        return { trips };
+        return { trips: mappedTrips };
 
     } catch (error) {
-        console.error("Error getting upcoming trips:", error);
+        console.error("Error getting upcoming trips from trips:", error);
         return { trips: [] };
     }
 };
 
-const getAssignedVehicleInfo = async (userId) => {
+// Get assigned vehicle info from contract
+const getAssignedVehicleInfoFromContract = async (employee) => {
     try {
-        const employee = await CorporateEmployee.findOne({ userId })
-            .populate('transportDetails.assignedRoute', 'fromLocation toLocation')
-            .populate('companyId', 'companyName');
-
-        if (!employee) {
-            return {
-                vehicleNumber: null,
-                vehicleType: null,
-                capacity: null,
-                driverName: null,
-                driverContact: null,
-                seatNumber: null
-            };
+        if (!employee?.companyId) {
+            return { vehicleNumber: null, vehicleType: null, capacity: null, driverName: null, driverContact: null, seatNumber: null };
         }
 
-        // Get vehicle assignment for this employee through contracts
-        let vehicleAssignment = null;
-        try {
-            const contracts = await Contract.find({ corporateOwnerId: employee.companyId }).distinct('_id');
-            vehicleAssignment = await VehicleAssignment.findOne({
-                contractId: { $in: contracts }
-            }).populate('vehicleId', 'vehicleNumber vehicleType capacity')
-              .populate('driverId', 'fullName contactNumber');
-        } catch (e) {
-            // Ignore if vehicle assignment not found
+        const contract = await Contract.findOne({
+            corporateOwnerId: employee.companyId,
+            status: 'ACTIVE'
+        });
+
+        if (!contract || !contract.vehicles?.length) {
+            return { vehicleNumber: null, vehicleType: null, capacity: null, driverName: null, driverContact: null, seatNumber: null };
+        }
+
+        let foundAssignment = null;
+        const assignedRouteId = employee.transportDetails?.assignedRoute?.toString();
+        
+        for (const vehicleGroup of contract.vehicles) {
+            if (vehicleGroup.assignedVehicles?.length > 0) {
+                for (const assignment of vehicleGroup.assignedVehicles) {
+                    if (assignment.status === 'ACTIVE') {
+                        if (assignedRouteId && assignment.routeDetails?.toString() === assignedRouteId) {
+                            foundAssignment = assignment;
+                            break;
+                        } else if (!foundAssignment) {
+                            foundAssignment = assignment;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!foundAssignment) {
+            return { vehicleNumber: null, vehicleType: null, capacity: null, driverName: null, driverContact: null, seatNumber: null };
+        }
+
+        const vehicle = foundAssignment.vehicleId ? await Vehicle.findById(foundAssignment.vehicleId) : null;
+        let driver = null;
+        if (foundAssignment.driverId) {
+            const driverModel = foundAssignment.driverModel || 'Driver';
+            if (driverModel === 'Driver') {
+                driver = await Driver.findById(foundAssignment.driverId);
+            } else {
+                driver = await User.findById(foundAssignment.driverId);
+            }
         }
 
         return {
-            vehicleNumber: vehicleAssignment?.vehicleId?.vehicleNumber || null,
-            vehicleType: vehicleAssignment?.vehicleId?.vehicleType || null,
-            capacity: vehicleAssignment?.vehicleId?.capacity || null,
-            driverName: vehicleAssignment?.driverId?.fullName || 'Not assigned',
-            driverContact: vehicleAssignment?.driverId?.contactNumber || 'Not available',
+            vehicleNumber: vehicle?.registrationNumber || null,
+            vehicleName: vehicle?.vehicleName || null,
+            vehicleType: vehicle?.vehicleCategory || null,
+            capacity: vehicle?.capacity?.seatingCapacity || null,
+            driverName: driver?.name || driver?.fullName || 'Not assigned',
+            driverContact: driver?.phone || driver?.whatsappNumber || 'Not available',
             seatNumber: employee.transportDetails?.seatNumber || 'Not assigned'
         };
 
     } catch (error) {
-        console.error("Error getting assigned vehicle info:", error);
-        return {
-            vehicleNumber: null,
-            vehicleType: null,
-            capacity: null,
-            driverName: null,
-            driverContact: null,
-            seatNumber: null
-        };
+        console.error("Error getting assigned vehicle info from contract:", error);
+        return { vehicleNumber: null, vehicleType: null, capacity: null, driverName: null, driverContact: null, seatNumber: null };
     }
 };
 
@@ -781,98 +804,101 @@ const getRouteSchedule = async (routeId) => {
 
 const createEmployeeBooking = async (employee, date) => {
     try {
-        // Check if booking already exists for this date
-        const existingBooking = await CorporateBooking.findOne({
-            passengerId: employee.userId,
-            travelDate: new Date(date),
-            bookingStatus: { $in: ['CONFIRMED', 'IN_PROGRESS'] }
+        const targetDate = new Date(date);
+        const dayStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+        const dayEnd = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() + 1);
+
+        // Find the trip for this date
+        const trip = await Trip.findOne({
+            corporateId: employee.companyId,
+            tripDate: { $gte: dayStart, $lt: dayEnd },
+            status: 'SCHEDULED'
         });
 
-        if (existingBooking) {
-            return {
-                success: false,
-                message: "Booking already exists for this date",
-                booking: existingBooking
-            };
+        if (!trip) {
+            return { success: false, message: "No trip found for this date" };
         }
 
-        // Create new booking
-        const booking = new CorporateBooking({
-            passengerId: employee.userId,
-            corporateOwnerId: employee.companyId,
-            routeId: employee.routeId,
-            contractId: await getActiveContractForEmployee(employee._id),
-            driverId: await getAssignedDriverForEmployee(employee._id),
-            pickupLocation: employee.pickupLocation || employee.residentialAddress?.area,
-            dropoffLocation: employee.dropoffLocation,
-            travelDate: new Date(date),
-            bookingDate: new Date(),
-            bookingStatus: "CONFIRMED"
-        });
+        // Check if already booked
+        const alreadyBooked = trip.passengers?.some(p => 
+            p.employeeId && p.employeeId.toString() === employee.userId.toString()
+        );
+        if (alreadyBooked) {
+            return { success: false, message: "Already booked for this date" };
+        }
 
-        await booking.save();
+        // Add employee as passenger
+        trip.passengers.push({
+            employeeId: employee.userId,
+            seatNumber: trip.bookedSeats + 1,
+            pickupPoint: employee.transportDetails?.pickupPoint || trip.fromLocation,
+            pickupTime: trip.startTime,
+            bookingStatus: 'CONFIRMED'
+        });
+        trip.bookedSeats = (trip.bookedSeats || 0) + 1;
+        trip.availableSeats = Math.max(0, (trip.availableSeats || trip.totalSeats) - 1);
+        await trip.save();
 
         return {
             success: true,
-            bookingId: booking._id,
+            bookingId: trip._id,
             employeeId: employee._id,
             date,
             status: "CONFIRMED",
-            createdAt: booking.createdAt
+            createdAt: new Date()
         };
 
     } catch (error) {
         console.error("Error creating employee booking:", error);
-        return {
-            success: false,
-            message: "Failed to create booking",
-            error: error.message
-        };
+        return { success: false, message: "Failed to create booking", error: error.message };
     }
 };
 
 const cancelEmployeeBooking = async (employee, date, reason) => {
     try {
-        // Find existing booking for this date
-        const booking = await CorporateBooking.findOne({
-            passengerId: employee.userId,
-            travelDate: new Date(date),
-            bookingStatus: { $in: ['CONFIRMED', 'IN_PROGRESS'] }
+        const targetDate = new Date(date);
+        const dayStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+        const dayEnd = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() + 1);
+
+        // Find trip for this date
+        const trip = await Trip.findOne({
+            corporateId: employee.companyId,
+            tripDate: { $gte: dayStart, $lt: dayEnd },
+            status: { $in: ['SCHEDULED', 'IN_PROGRESS'] }
         });
 
-        if (!booking) {
-            return {
-                success: false,
-                message: "No booking found for this date"
-            };
+        if (!trip) {
+            return { success: false, message: "No trip found for this date" };
         }
 
-        // Update booking status to cancelled
-        booking.bookingStatus = "CANCELLED";
-        booking.cancelledAt = new Date();
-        if (reason) {
-            booking.passengerNotes = reason;
+        // Find passenger entry
+        const passengerIdx = trip.passengers?.findIndex(p => 
+            p.employeeId && p.employeeId.toString() === employee.userId.toString()
+        );
+
+        if (passengerIdx < 0) {
+            return { success: false, message: "Not booked for this trip" };
         }
 
-        await booking.save();
+        // Mark as cancelled
+        trip.passengers[passengerIdx].bookingStatus = 'CANCELLED';
+        trip.bookedSeats = Math.max(0, (trip.bookedSeats || 1) - 1);
+        trip.availableSeats = (trip.availableSeats || 0) + 1;
+        await trip.save();
 
         return {
             success: true,
-            bookingId: booking._id,
+            bookingId: trip._id,
             employeeId: employee._id,
             date,
             reason,
             status: "CANCELLED",
-            cancelledAt: booking.cancelledAt
+            cancelledAt: new Date()
         };
 
     } catch (error) {
         console.error("Error cancelling employee booking:", error);
-        return {
-            success: false,
-            message: "Failed to cancel booking",
-            error: error.message
-        };
+        return { success: false, message: "Failed to cancel booking", error: error.message };
     }
 };
 
@@ -881,16 +907,9 @@ const getEmployeeSummary = async (userId, period) => {
         const employee = await CorporateEmployee.findOne({ userId });
 
         if (!employee) {
-            return {
-                totalTravelDays: 0,
-                presentDays: 0,
-                absentTrips: 0,
-                onTimePercentage: 0,
-                averageRating: 0
-            };
+            return { totalTravelDays: 0, presentDays: 0, absentTrips: 0, onTimePercentage: 0, averageRating: 0 };
         }
 
-        // Calculate date range based on period
         const today = new Date();
         let startDate;
         
@@ -905,52 +924,31 @@ const getEmployeeSummary = async (userId, period) => {
                 startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
         }
 
-        // Get all bookings in the period
-        const bookings = await CorporateBooking.find({
-            passengerId: userId,
-            travelDate: {
-                $gte: startDate,
-                $lte: today
-            }
+        // Query trips collection for this corporate
+        const trips = await Trip.find({
+            corporateId: employee.companyId,
+            tripDate: { $gte: startDate, $lte: today }
         });
 
-        const totalTravelDays = bookings.length;
-        const presentDays = bookings.filter(booking => 
-            booking.bookingStatus === 'COMPLETED'
-        ).length;
-        const absentTrips = bookings.filter(booking => 
-            booking.bookingStatus === 'CANCELLED'
-        ).length;
+        const totalTravelDays = trips.length;
+        const presentDays = trips.filter(t => t.status === 'COMPLETED').length;
+        const absentTrips = trips.filter(t => t.status === 'CANCELLED').length;
+        const onTimePercentage = totalTravelDays > 0 ? (presentDays / totalTravelDays) * 100 : 0;
 
-        // Calculate on-time percentage (completed trips with good ratings)
-        const onTimeTrips = bookings.filter(booking => 
-            booking.bookingStatus === 'COMPLETED' && booking.rating && booking.rating >= 4
-        ).length;
-        const onTimePercentage = presentDays > 0 ? (onTimeTrips / presentDays) * 100 : 0;
-
-        // Calculate average rating
-        const ratedTrips = bookings.filter(booking => booking.rating);
-        const averageRating = ratedTrips.length > 0 
-            ? ratedTrips.reduce((sum, booking) => sum + booking.rating, 0) / ratedTrips.length 
-            : 0;
+        // Get feedback from employee record
+        const averageRating = employee.feedback?.averageRating || 0;
 
         return {
             totalTravelDays,
             presentDays,
             absentTrips,
             onTimePercentage: parseFloat(onTimePercentage.toFixed(1)),
-            averageRating: parseFloat(averageRating.toFixed(1))
+            averageRating: parseFloat(averageRating.toFixed ? averageRating.toFixed(1) : '0')
         };
 
     } catch (error) {
         console.error("Error getting employee summary:", error);
-        return {
-            totalTravelDays: 0,
-            presentDays: 0,
-            absentTrips: 0,
-            onTimePercentage: 0,
-            averageRating: 0
-        };
+        return { totalTravelDays: 0, presentDays: 0, absentTrips: 0, onTimePercentage: 0, averageRating: 0 };
     }
 };
 
@@ -1046,12 +1044,23 @@ const getActiveContractForEmployee = async (employeeId) => {
 const getAssignedDriverForEmployee = async (employeeId) => {
     try {
         const employee = await CorporateEmployee.findById(employeeId);
-        const vehicleAssignment = await VehicleAssignment.findOne({
-            contractId: { $in: await Contract.find({ corporateOwnerId: employee.companyId }).distinct('_id') },
-            vehicleId: employee.vehicleId
-        }).populate('driverId');
+        if (!employee?.companyId) return null;
         
-        return vehicleAssignment?.driverId?._id || null;
+        const contract = await Contract.findOne({
+            corporateOwnerId: employee.companyId,
+            status: 'ACTIVE'
+        });
+        
+        if (!contract?.vehicles?.length) return null;
+        
+        for (const vg of contract.vehicles) {
+            for (const av of (vg.assignedVehicles || [])) {
+                if (av.status === 'ACTIVE' && av.driverId) {
+                    return av.driverId;
+                }
+            }
+        }
+        return null;
     } catch (error) {
         console.error("Error getting assigned driver:", error);
         return null;

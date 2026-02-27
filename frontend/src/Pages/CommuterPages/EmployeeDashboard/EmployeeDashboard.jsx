@@ -219,12 +219,16 @@ function TripInfoTab({ tripInfo, loading, onMarkNotTraveling }) {
             <div className="info-card">
               <label>Vehicle</label>
               <p>
-                {tripInfo.vehicle?.make && tripInfo.vehicle?.model 
+                {tripInfo.vehicle?.vehicleName || 
+                 (tripInfo.vehicle?.make && tripInfo.vehicle?.model 
                   ? `${tripInfo.vehicle.make} ${tripInfo.vehicle.model}`
-                  : "Not assigned"}
+                  : "Not assigned")}
               </p>
-              {tripInfo.vehicle?.licensePlate && (
-                <small>License Plate: {tripInfo.vehicle.licensePlate}</small>
+              {(tripInfo.vehicle?.registrationNumber || tripInfo.vehicle?.licensePlate) && (
+                <small>Registration: {tripInfo.vehicle.registrationNumber || tripInfo.vehicle.licensePlate}</small>
+              )}
+              {tripInfo.vehicle?.vehicleCategory && (
+                <small style={{ display: "block" }}>Type: {tripInfo.vehicle.vehicleCategory}</small>
               )}
             </div>
             <div className="info-card">

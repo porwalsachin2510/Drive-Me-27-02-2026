@@ -54,21 +54,13 @@ function EmployeeTripBooking() {
     try {
       setLoading(true);
       
-      const today = new Date().toISOString().split('T')[0];
+      // Use the corporate employee dashboard API which returns upcoming trips
+      const response = await api.get("/corporate-employee-users/dashboard");
+      const dashboardData = response.data?.data;
       
-      // Only call if routeId is available - backend requires it
-      if (!routeId) {
-        setTrips([]);
-        return;
-      }
-      
-      const response = await api.get("/b2c-trips/trips/available", {
-        params: {
-          routeId,
-          date: today
-        }
-      });
-      setTrips(response.data.data?.trips || response.data.trips || []);
+      // Get upcoming trips (these are the available/upcoming corporate trips)
+      const upcomingTrips = dashboardData?.upcomingTrips || dashboardData?.bookings || [];
+      setTrips(Array.isArray(upcomingTrips) ? upcomingTrips : []);
     } catch (error) {
       console.error("Error fetching trips:", error);
       setTrips([]);
@@ -80,9 +72,11 @@ function EmployeeTripBooking() {
   const fetchMyBookings = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/b2c-trips/bookings");
-      const data = response.data.data?.bookings || response.data.bookings || response.data.data || [];
-      setMyBookings(Array.isArray(data) ? data : []);
+      // Use dashboard API - bookings are the same as upcoming trips for corporate employees
+      const response = await api.get("/corporate-employee-users/dashboard");
+      const dashboardData = response.data?.data;
+      const bookingsData = dashboardData?.upcomingTrips || dashboardData?.bookings || [];
+      setMyBookings(Array.isArray(bookingsData) ? bookingsData : []);
     } catch (error) {
       console.error("Error fetching bookings:", error);
       setMyBookings([]);
@@ -94,17 +88,31 @@ function EmployeeTripBooking() {
   const fetchMonthlyPasses = async () => {
     try {
       setLoading(true);
-      // Backend route is /monthly-pass/user/:userId
-      const userId = user?._id || user?.id;
-      if (!userId) {
+      // Corporate employees don't have B2C monthly passes
+      // Their transport is managed by the corporate through contracts
+      // Show contract-based info instead
+      const response = await api.get("/corporate-employee-users/route");
+      const routeData = response.data?.data;
+      if (routeData?.route) {
+        // Create a pass-like object from the route assignment
+        setMonthlyPasses([{
+          _id: routeData.route._id || 'corporate-pass',
+          status: 'ACTIVE',
+          passType: 'CORPORATE',
+          fromLocation: routeData.route.fromLocation,
+          toLocation: routeData.route.toLocation,
+          pickupLocation: routeData.pickupStop,
+          dropoffLocation: routeData.dropoffStop,
+          shiftType: routeData.shiftType,
+          vehicle: routeData.vehicle,
+          driver: routeData.driver,
+          subscriptionType: 'COMPANY_PAID'
+        }]);
+      } else {
         setMonthlyPasses([]);
-        return;
       }
-      const response = await api.get(`/monthly-pass/user/${userId}`);
-      const data = response.data.data?.passes || response.data.passes || response.data.data || [];
-      setMonthlyPasses(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Error fetching monthly passes:", error);
+      console.error("Error fetching pass info:", error);
       setMonthlyPasses([]);
     } finally {
       setLoading(false);
@@ -235,11 +243,11 @@ function EmployeeTripBooking() {
                       </div>
                       
                       <div className="trip-info">
-                        <p><strong>Date:</strong> {formatDate(trip.tripDate)}</p>
-                        <p><strong>Time:</strong> {trip.startTime} - {trip.endTime}</p>
-                        <p><strong>Duration:</strong> {trip.estimatedDuration}</p>
-                        <p><strong>Vehicle:</strong> {trip.vehicleId?.make} {trip.vehicleId?.model}</p>
-                        <p><strong>Driver:</strong> {trip.driverId?.fullName}</p>
+                        <p><strong>Date:</strong> {formatDate(trip.tripDate || trip.date)}</p>
+                        <p><strong>Time:</strong> {trip.startTime} {trip.endTime ? `- ${trip.endTime}` : ''}</p>
+                        <p><strong>Type:</strong> {trip.tripType || 'One Way'} {trip.direction ? `(${trip.direction})` : ''}</p>
+                        <p><strong>Vehicle:</strong> {trip.vehicleName || trip.vehicleNumber || trip.vehicleId?.vehicleName || 'Not assigned'}</p>
+                        <p><strong>Driver:</strong> {trip.driverName || trip.driverId?.fullName || 'Not assigned'}</p>
                       </div>
 
                       <div className="trip-seats">
@@ -309,14 +317,12 @@ function EmployeeTripBooking() {
                       </div>
                       
                       <div className="booking-details">
-                        <p><strong>Date:</strong> {formatDate(booking.tripDate)}</p>
-                        <p><strong>Time:</strong> {booking.startTime} - {booking.endTime}</p>
-                        <p><strong>Seat:</strong> {booking.myBooking?.seatNumber}</p>
-                        <p><strong>Pickup:</strong> {booking.myBooking?.pickupPoint}</p>
-                        <p><strong>Pickup Time:</strong> {booking.myBooking?.pickupTime}</p>
-                        {booking.myBooking?.monthlyPass && (
-                          <p><strong>Payment:</strong> Monthly Pass</p>
-                        )}
+                        <p><strong>Date:</strong> {formatDate(booking.tripDate || booking.date)}</p>
+                        <p><strong>Time:</strong> {booking.startTime} {booking.endTime ? `- ${booking.endTime}` : ''}</p>
+                        <p><strong>Type:</strong> {booking.tripType || 'One Way'}</p>
+                        <p><strong>Vehicle:</strong> {booking.vehicleName || booking.vehicleNumber || 'Not assigned'}</p>
+                        <p><strong>Driver:</strong> {booking.driverName || 'Not assigned'}</p>
+                        <p><strong>Pickup:</strong> {booking.pickupLocation || booking.fromLocation}</p>
                       </div>
 
                       <div className="booking-actions">
@@ -347,7 +353,7 @@ function EmployeeTripBooking() {
                   {monthlyPasses.map((pass) => (
                     <div key={pass._id} className="pass-card">
                       <div className="pass-header">
-                        <h3>{pass.routeId?.fromLocation} → {pass.routeId?.toLocation}</h3>
+                        <h3>{pass.fromLocation || pass.routeId?.fromLocation} → {pass.toLocation || pass.routeId?.toLocation}</h3>
                         <span 
                           className="pass-status"
                           style={{ backgroundColor: getPassStatusColor(pass.status) }}
@@ -357,32 +363,32 @@ function EmployeeTripBooking() {
                       </div>
                       
                       <div className="pass-details">
-                        <p><strong>Valid From:</strong> {new Date(pass.validFrom).toLocaleDateString()}</p>
-                        <p><strong>Valid To:</strong> {new Date(pass.validTo).toLocaleDateString()}</p>
-                        <p><strong>Total Trips:</strong> {pass.totalTrips}</p>
-                        <p><strong>Used Trips:</strong> {pass.usedTrips}</p>
-                        <p><strong>Remaining:</strong> {pass.remainingTrips}</p>
-                        <p><strong>Pickup Point:</strong> {pass.preferredPickupPoint}</p>
-                        <p><strong>Pickup Time:</strong> {pass.preferredPickupTime}</p>
-                        <p><strong>Amount:</strong> {pass.currency} {pass.totalAmount}</p>
-                        <p><strong>Payment:</strong> {pass.paymentStatus}</p>
-                      </div>
-
-                      <div className="pass-usage">
-                        <div className="usage-info">
-                          <span className="usage-text">Usage Progress</span>
-                          <span className="usage-percentage">
-                            {Math.round((pass.usedTrips / pass.totalTrips) * 100)}%
-                          </span>
-                        </div>
-                        <div className="usage-progress">
-                          <div 
-                            className="usage-progress-bar"
-                            style={{ 
-                              width: `${(pass.usedTrips / pass.totalTrips) * 100}%` 
-                            }}
-                          />
-                        </div>
+                        {pass.passType === 'CORPORATE' ? (
+                          <>
+                            <p><strong>Type:</strong> Corporate Transport Pass</p>
+                            <p><strong>Subscription:</strong> {pass.subscriptionType || 'Company Paid'}</p>
+                            <p><strong>Pickup:</strong> {pass.pickupLocation || 'Not set'}</p>
+                            <p><strong>Dropoff:</strong> {pass.dropoffLocation || 'Not set'}</p>
+                            <p><strong>Shift:</strong> {pass.shiftType || 'Full Day'}</p>
+                            {pass.vehicle && (
+                              <p><strong>Vehicle:</strong> {pass.vehicle.vehicleName || `${pass.vehicle.make || ''} ${pass.vehicle.model || ''}`}</p>
+                            )}
+                            {pass.driver && (
+                              <p><strong>Driver:</strong> {pass.driver.fullName || 'Not assigned'}</p>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <p><strong>Valid From:</strong> {pass.validFrom ? new Date(pass.validFrom).toLocaleDateString() : 'N/A'}</p>
+                            <p><strong>Valid To:</strong> {pass.validTo ? new Date(pass.validTo).toLocaleDateString() : 'N/A'}</p>
+                            <p><strong>Total Trips:</strong> {pass.totalTrips || 'Unlimited'}</p>
+                            <p><strong>Used Trips:</strong> {pass.usedTrips || 0}</p>
+                            <p><strong>Remaining:</strong> {pass.remainingTrips || 'N/A'}</p>
+                            <p><strong>Pickup Point:</strong> {pass.preferredPickupPoint || 'Not set'}</p>
+                            <p><strong>Amount:</strong> {pass.currency || ''} {pass.totalAmount || 'Company Paid'}</p>
+                            <p><strong>Payment:</strong> {pass.paymentStatus || 'Company Paid'}</p>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}

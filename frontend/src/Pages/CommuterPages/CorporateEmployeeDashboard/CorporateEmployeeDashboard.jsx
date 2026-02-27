@@ -259,16 +259,16 @@ export default function CorporateEmployeeDashboard() {
                           <p>
                             <strong>Vehicle:</strong>{" "}
                             {assignedBus.vehicle
-                              ? `${assignedBus.vehicle.make || ""} ${assignedBus.vehicle.model || ""}`.trim() || "N/A"
+                              ? assignedBus.vehicle.vehicleName || `${assignedBus.vehicle.make || ""} ${assignedBus.vehicle.model || ""}`.trim() || "N/A"
                               : "Not assigned"}
                           </p>
                           <p>
                             <strong>Type:</strong>{" "}
-                            {assignedBus.vehicle?.vehicleType || "N/A"}
+                            {assignedBus.vehicle?.vehicleCategory || assignedBus.vehicle?.vehicleType || "N/A"}
                           </p>
                           <p>
-                            <strong>License Plate:</strong>{" "}
-                            {assignedBus.vehicle?.licensePlate || "N/A"}
+                            <strong>Registration:</strong>{" "}
+                            {assignedBus.vehicle?.registrationNumber || assignedBus.vehicle?.licensePlate || "N/A"}
                           </p>
                           <p>
                             <strong>Capacity:</strong>{" "}
@@ -347,9 +347,9 @@ export default function CorporateEmployeeDashboard() {
               <div className="section-content">
                 <div className="bookings-card">
                   <h2>My Upcoming Bookings</h2>
-                  {upcomingTrips.length > 0 ? (
+                  {todayTrips.length > 0 ? (
                     <div className="bookings-list">
-                      {upcomingTrips.map((booking) => (
+                      {todayTrips.map((booking) => (
                         <div key={booking._id} className="booking-item">
                           <div className="booking-date">
                             {new Date(booking.tripDate).toLocaleDateString()}
@@ -394,28 +394,29 @@ export default function CorporateEmployeeDashboard() {
             {activeSection === "history" && (
               <div className="section-content">
                 <div className="history-card">
-                  <h2>No-Show History</h2>
-                  {noShowHistory.length > 0 ? (
+                  <h2>Travel History</h2>
+                  {todayTrips.length > 0 ? (
                     <div className="history-list">
-                      {noShowHistory.map((noShow) => (
-                        <div key={noShow._id} className="history-item">
+                      {todayTrips.map((trip) => (
+                        <div key={trip._id} className="history-item">
                           <div className="history-date">
-                            {new Date(noShow.date).toLocaleDateString()}
+                            {new Date(trip.tripDate || trip.date).toLocaleDateString()}
                           </div>
                           <div className="history-info">
-                            <span>{noShow.message}</span>
+                            <span>{trip.fromLocation || 'Unknown'} → {trip.toLocation || 'Unknown'}</span>
                           </div>
                           <div className="history-reason">
                             <span>
-                              Reason: {noShow.reason || "Not specified"}
+                              Status: {trip.status || trip.attendance || "Scheduled"}
                             </span>
+                            {trip.startTime && <span> | Time: {trip.startTime}</span>}
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
                     <div className="no-history">
-                      <p>Great! No no-show records</p>
+                      <p>No travel history yet</p>
                     </div>
                   )}
                 </div>
