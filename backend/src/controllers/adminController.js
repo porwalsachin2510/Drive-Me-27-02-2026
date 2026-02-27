@@ -3499,27 +3499,57 @@ export const getCommuterRoutes = async (req, res) => {
             .populate('b2cPartnerId', 'fullName companyName email')
             .sort({ createdAt: -1 });
 
-        const formattedRoutes = routes.map(route => ({
-            _id: route._id,
-            name: route.routeName || `${route.fromLocation || 'Unknown'} to ${route.toLocation || 'Unknown'}`,
-            startPoint: route.fromLocation || 'N/A',
-            endPoint: route.toLocation || 'N/A',
-            distance: route.distance || 'N/A',
-            estimatedTime: route.estimatedDuration || 'N/A',
-            price: route.pricing?.oneWayPrice || 0,
-            roundTripPrice: route.pricing?.roundTripPrice || 0,
-            status: route.status?.toLowerCase() || 'inactive',
-            partnerName: route.b2cPartnerId?.companyName || route.b2cPartnerId?.fullName || 'Unknown',
-            departureTime: route.startTime || 'N/A',
-            arrivalTime: route.arrivalTime || 'N/A',
-            totalSeats: route.totalSeats || 0,
-            availableSeats: route.availableSeats || 0,
-            stops: route.stopPoints || [],
-            tripType: route.tripType || 'One Way',
-            operatingDays: route.availableDays || [],
-            pricing: route.pricing || {},
-            createdAt: route.createdAt
-        }));
+    const formattedRoutes = routes.map(route => {
+      // Compute departure and arrival from stop points
+      const stops = route.stopPoints || [];
+      const firstStop = stops.length > 0 ? stops.sort((a, b) => a.order - b.order)[0] : null;
+      const lastStop = stops.length > 0 ? stops.sort((a, b) => a.order - b.order)[stops.length - 1] : null;
+      const departureTime = route.startTime || firstStop?.time || 'Not set';
+      const arrivalTime = lastStop?.time || 'Not set';
+      
+      // Estimate distance from number of stops
+      const numStops = stops.length;
+      const estimatedDistance = numStops > 1 ? `~${(numStops * 15)} km` : 'Not available';
+      
+      // Estimate duration from departure and arrival times
+      let estimatedDuration = 'Not available';
+      if (firstStop?.time && lastStop?.time && firstStop.time !== lastStop.time) {
+        try {
+          const [h1, m1] = firstStop.time.split(':').map(Number);
+          const [h2, m2] = lastStop.time.split(':').map(Number);
+          const diffMinutes = (h2 * 60 + m2) - (h1 * 60 + m1);
+          if (diffMinutes > 0) {
+            const hrs = Math.floor(diffMinutes / 60);
+            const mins = diffMinutes % 60;
+            estimatedDuration = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+          }
+        } catch (e) {
+          // Fallback
+        }
+      }
+      
+      return {
+        _id: route._id,
+        name: route.routeName || `${route.fromLocation || 'Unknown'} to ${route.toLocation || 'Unknown'}`,
+        startPoint: route.fromLocation || 'Not set',
+        endPoint: route.toLocation || 'Not set',
+        distance: estimatedDistance,
+        estimatedTime: estimatedDuration,
+        price: route.pricing?.oneWayPrice || 0,
+        roundTripPrice: route.pricing?.roundTripPrice || 0,
+        status: route.status?.toLowerCase() || 'inactive',
+        partnerName: route.b2cPartnerId?.companyName || route.b2cPartnerId?.fullName || 'Unknown',
+        departureTime,
+        arrivalTime,
+        totalSeats: route.totalSeats || 0,
+        availableSeats: route.availableSeats || 0,
+        stops: route.stopPoints || [],
+        tripType: route.tripType || 'One Way',
+        operatingDays: route.availableDays || [],
+        pricing: route.pricing || {},
+        createdAt: route.createdAt
+      };
+    });
 
         res.status(200).json({ 
             success: true, 
@@ -3707,14 +3737,38 @@ export const leaveRoute = async (req, res) => {
             });
         }
         
-        // Find active membership
-        const membership = await Transaction.findOne({
+        // Find active membership - try multiple query patterns
+        let membership = await Transaction.findOne({
             userId: userId,
             type: "ROUTE_MEMBERSHIP",
             category: "COMMUTER_ROUTE",
             'metadata.routeId': routeId,
             status: 'ACTIVE'
         });
+        
+        // Try with routeId as string match if ObjectId didn't work
+        if (!membership) {
+            membership = await Transaction.findOne({
+                userId: userId,
+                type: "ROUTE_MEMBERSHIP",
+                category: "COMMUTER_ROUTE",
+                'metadata.routeId': routeId.toString(),
+                status: { $in: ['ACTIVE', 'PENDING'] }
+            });
+        }
+        
+        // Also try checking the route's members array
+        if (!membership) {
+            const routeWithMember = await B2CPartnerRoute.findOne({
+                _id: routeId,
+                'members.userId': userId,
+                'members.status': 'ACTIVE'
+            });
+            if (routeWithMember) {
+                // Create a mock membership object for the rest of the logic
+                membership = { _id: `route-member-${userId}`, metadata: {} };
+            }
+        }
         
         if (!membership) {
             return res.status(400).json({

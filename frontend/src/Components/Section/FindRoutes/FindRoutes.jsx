@@ -37,9 +37,11 @@ export default function FindRoutes() {
   };
 
   const filteredRoutes = routes.filter(route => {
-    const matchesSearch = route.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         route.startPoint.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         route.endPoint.toLowerCase().includes(searchQuery.toLowerCase());
+    const name = (route.name || '').toLowerCase();
+    const start = (route.startPoint || '').toLowerCase();
+    const end = (route.endPoint || '').toLowerCase();
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = !searchQuery || name.includes(query) || start.includes(query) || end.includes(query);
     const matchesStatus = filterStatus === "all" || route.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
@@ -128,26 +130,26 @@ export default function FindRoutes() {
                 <div className="route-meta">
                   <div className="meta-item">
                     <span className="meta-label">Distance:</span>
-                    <span className="meta-value">{route.distance}</span>
+                    <span className="meta-value">{route.distance && route.distance !== 'N/A' ? route.distance : 'Not available'}</span>
                   </div>
                   <div className="meta-item">
                     <span className="meta-label">Duration:</span>
-                    <span className="meta-value">{route.estimatedTime}</span>
+                    <span className="meta-value">{route.estimatedTime && route.estimatedTime !== 'N/A' ? route.estimatedTime : 'Not available'}</span>
                   </div>
                   <div className="meta-item">
                     <span className="meta-label">Partner:</span>
-                    <span className="meta-value">{route.partnerName}</span>
+                    <span className="meta-value">{route.partnerName || 'Unknown'}</span>
                   </div>
                 </div>
 
                 <div className="route-schedule">
                   <div className="schedule-item">
                     <span className="schedule-label">Departure:</span>
-                    <span className="schedule-time">{route.departureTime}</span>
+                    <span className="schedule-time">{route.departureTime && route.departureTime !== 'N/A' ? route.departureTime : 'Not set'}</span>
                   </div>
                   <div className="schedule-item">
                     <span className="schedule-label">Arrival:</span>
-                    <span className="schedule-time">{route.arrivalTime}</span>
+                    <span className="schedule-time">{route.arrivalTime && route.arrivalTime !== 'N/A' ? route.arrivalTime : 'Not set'}</span>
                   </div>
                 </div>
               </div>
@@ -177,13 +179,15 @@ export default function FindRoutes() {
   );
 
   async function handleLeaveRoute(routeId) {
+    if (!window.confirm("Are you sure you want to leave this route?")) return;
     try {
       await api.post(`/commuter/routes/${routeId}/leave`);
       alert("Successfully left route!");
       fetchRoutes();
     } catch (error) {
       console.error("Error leaving route:", error);
-      alert("Failed to leave route");
+      const msg = error.response?.data?.message || "Failed to leave route";
+      alert(msg);
     }
   }
 }

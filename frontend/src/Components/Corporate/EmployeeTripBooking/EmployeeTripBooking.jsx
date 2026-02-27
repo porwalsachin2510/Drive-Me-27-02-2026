@@ -54,13 +54,38 @@ function EmployeeTripBooking() {
     try {
       setLoading(true);
       
-      // Use the corporate employee dashboard API which returns upcoming trips
+      // Use the corporate employee dashboard API which returns upcoming trips and todayTrips
       const response = await api.get("/corporate-employee-users/dashboard");
       const dashboardData = response.data?.data;
       
-      // Get upcoming trips (these are the available/upcoming corporate trips)
+      // Combine todayTrips and upcomingTrips for the available trips view
+      const todayTrips = dashboardData?.todayTrips || [];
       const upcomingTrips = dashboardData?.upcomingTrips || dashboardData?.bookings || [];
-      setTrips(Array.isArray(upcomingTrips) ? upcomingTrips : []);
+      
+      // Merge and deduplicate by _id
+      const allTrips = [...todayTrips, ...upcomingTrips];
+      const uniqueTrips = allTrips.filter((trip, index, self) => 
+        index === self.findIndex(t => t._id === trip._id)
+      );
+      
+      // Also try to get route stop points for pickup selection
+      try {
+        const routeResponse = await api.get("/corporate-employee-users/route");
+        const routeData = routeResponse.data?.data;
+        if (routeData?.route?.stopPoints) {
+          // Attach stop points to all trips that don't have them
+          const enrichedTrips = uniqueTrips.map(trip => ({
+            ...trip,
+            stopPoints: trip.routeId?.stopPoints || routeData.route.stopPoints || [],
+            routeStopPoints: routeData.route.stopPoints || []
+          }));
+          setTrips(enrichedTrips);
+        } else {
+          setTrips(uniqueTrips);
+        }
+      } catch {
+        setTrips(uniqueTrips);
+      }
     } catch (error) {
       console.error("Error fetching trips:", error);
       setTrips([]);
@@ -72,11 +97,17 @@ function EmployeeTripBooking() {
   const fetchMyBookings = async () => {
     try {
       setLoading(true);
-      // Use dashboard API - bookings are the same as upcoming trips for corporate employees
       const response = await api.get("/corporate-employee-users/dashboard");
       const dashboardData = response.data?.data;
-      const bookingsData = dashboardData?.upcomingTrips || dashboardData?.bookings || [];
-      setMyBookings(Array.isArray(bookingsData) ? bookingsData : []);
+      // Combine todayTrips and bookings for comprehensive view
+      const todayTrips = dashboardData?.todayTrips || [];
+      const bookingsData = dashboardData?.bookings || dashboardData?.upcomingTrips || [];
+      const allBookings = [...todayTrips, ...bookingsData];
+      // Deduplicate
+      const uniqueBookings = allBookings.filter((b, i, self) => 
+        i === self.findIndex(t => t._id === b._id)
+      );
+      setMyBookings(uniqueBookings);
     } catch (error) {
       console.error("Error fetching bookings:", error);
       setMyBookings([]);
@@ -152,12 +183,25 @@ function EmployeeTripBooking() {
     }
 
     try {
-      await api.delete(`/trips/${tripId}/cancel`);
-      fetchMyBookings();
-      alert("Booking cancelled successfully!");
+      // Try corporate trip cancel first (DELETE /api/trips/:tripId/cancel)
+      try {
+        await api.delete(`/trips/${tripId}/cancel`);
+        fetchMyBookings();
+        alert("Booking cancelled successfully!");
+        return;
+      } catch (err) {
+        // If trip cancel fails with 404, try B2C booking cancel
+        if (err.response?.status === 404) {
+          await api.put(`/bookings/${tripId}/cancel`);
+          fetchMyBookings();
+          alert("Booking cancelled successfully!");
+          return;
+        }
+        throw err;
+      }
     } catch (error) {
-      console.error("Error cancelling booking:", error);
-      alert("Failed to cancel booking");
+      console.error("Error canceling booking:", error);
+      alert(error.response?.data?.message || "Failed to cancel booking");
     }
   };
 
@@ -268,15 +312,15 @@ function EmployeeTripBooking() {
                       <div className="trip-route-stops">
                         <h4>Stop Points</h4>
                         <div className="stops-list">
-                          {trip.routeId?.stopPoints?.slice(0, 3).map((stop, index) => (
+                          {(trip.stopPoints || trip.routeStopPoints || trip.routeId?.stopPoints || []).slice(0, 3).map((stop, index) => (
                             <div key={index} className="stop-item">
                               <span className="stop-location">{stop.location}</span>
                               <span className="stop-time">{stop.time}</span>
                             </div>
                           ))}
-                          {trip.routeId?.stopPoints?.length > 3 && (
+                          {(trip.stopPoints || trip.routeStopPoints || trip.routeId?.stopPoints || []).length > 3 && (
                             <span className="more-stops">
-                              +{trip.routeId.stopPoints.length - 3} more stops
+                              +{(trip.stopPoints || trip.routeStopPoints || trip.routeId?.stopPoints).length - 3} more stops
                             </span>
                           )}
                         </div>
@@ -427,11 +471,23 @@ function EmployeeTripBooking() {
                   required
                 >
                   <option value="">Select pickup point</option>
-                  {selectedTrip.routeId?.stopPoints?.map((stop, index) => (
+                  {/* Use stopPoints from enriched trip data, or fallback to routeId.stopPoints */}
+                  {(selectedTrip.stopPoints || selectedTrip.routeStopPoints || selectedTrip.routeId?.stopPoints || []).map((stop, index) => (
                     <option key={index} value={stop.location}>
-                      {stop.location} ({stop.time})
+                      {stop.location} {stop.time ? `(${stop.time})` : ''}
                     </option>
                   ))}
+                  {/* If no stop points, show from/to as pickup options */}
+                  {!(selectedTrip.stopPoints?.length || selectedTrip.routeStopPoints?.length || selectedTrip.routeId?.stopPoints?.length) && (
+                    <>
+                      {selectedTrip.fromLocation && (
+                        <option value={selectedTrip.fromLocation}>{selectedTrip.fromLocation} (Start)</option>
+                      )}
+                      {selectedTrip.toLocation && (
+                        <option value={selectedTrip.toLocation}>{selectedTrip.toLocation} (End)</option>
+                      )}
+                    </>
+                  )}
                 </select>
               </div>
 
