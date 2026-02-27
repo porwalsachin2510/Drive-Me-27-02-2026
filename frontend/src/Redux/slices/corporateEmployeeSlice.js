@@ -168,8 +168,10 @@ const corporateEmployeeSlice = createSlice({
       })
       .addCase(fetchEmployeeTrips.fulfilled, (state, action) => {
         state.trips.loading = false;
-        state.trips.data = action.payload.trips || [];
-        state.trips.date = action.payload.date;
+        // Dashboard API returns { success, data: { upcomingTrips, bookings, travelHistory, ... } }
+        const payload = action.payload;
+        state.trips.data = payload?.data?.upcomingTrips || payload?.data?.bookings || payload?.trips || [];
+        state.trips.date = action.payload.date || new Date().toISOString().split('T')[0];
       })
       .addCase(fetchEmployeeTrips.rejected, (state, action) => {
         state.trips.loading = false;
@@ -199,7 +201,12 @@ const corporateEmployeeSlice = createSlice({
       })
       .addCase(fetchNoShowHistory.fulfilled, (state, action) => {
         state.noShowHistory.loading = false;
-        state.noShowHistory.data = action.payload.noShows || [];
+        const payload = action.payload;
+        state.noShowHistory.data = payload?.data?.noShows || payload?.noShows || payload?.data || [];
+        // Ensure it's always an array
+        if (!Array.isArray(state.noShowHistory.data)) {
+          state.noShowHistory.data = [];
+        }
       })
       .addCase(fetchNoShowHistory.rejected, (state, action) => {
         state.noShowHistory.loading = false;
@@ -214,7 +221,8 @@ const corporateEmployeeSlice = createSlice({
       })
       .addCase(fetchNotifications.fulfilled, (state, action) => {
         state.notifications.loading = false;
-        state.notifications.data = action.payload.notifications || [];
+        const payload = action.payload;
+        state.notifications.data = payload?.data?.notifications || payload?.notifications || [];
       })
       .addCase(fetchNotifications.rejected, (state, action) => {
         state.notifications.loading = false;

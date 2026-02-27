@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
 import api from "../../../utils/api";
 import "./EmployeeTripBooking.css";
 
 function EmployeeTripBooking() {
+  const user = useSelector((state) => state.auth.user);
   const [trips, setTrips] = useState([]);
   const [myBookings, setMyBookings] = useState([]);
   const [monthlyPasses, setMonthlyPasses] = useState([]);
@@ -10,12 +12,33 @@ function EmployeeTripBooking() {
   const [activeTab, setActiveTab] = useState("available");
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [routeId, setRouteId] = useState(localStorage.getItem('routeId') || '');
   const [bookingData, setBookingData] = useState({
     pickupPoint: "",
     pickupTime: "",
     seatNumber: 1,
     useMonthlyPass: false
   });
+
+  // Fetch the employee's assigned route to get routeId on mount
+  useEffect(() => {
+    const fetchEmployeeRoute = async () => {
+      try {
+        const response = await api.get("/corporate-employee-users/route");
+        if (response.data?.data?.route?._id) {
+          const id = response.data.data.route._id;
+          setRouteId(id);
+          localStorage.setItem('routeId', id);
+        }
+      } catch (err) {
+        console.error("Error fetching employee route:", err);
+      }
+    };
+
+    if (!routeId) {
+      fetchEmployeeRoute();
+    }
+  }, []);
 
   useEffect(() => {
     if (activeTab === "available") {
@@ -25,18 +48,20 @@ function EmployeeTripBooking() {
     } else if (activeTab === "monthly-pass") {
       fetchMonthlyPasses();
     }
-  }, [activeTab]);
+  }, [activeTab, routeId]);
 
   const fetchAvailableTrips = async () => {
     try {
       setLoading(true);
       
-      // Get current date and routeId from employee's profile
       const today = new Date().toISOString().split('T')[0];
-      const routeId = localStorage.getItem('routeId') || '';
       
-      // Backend: GET /api/b2c-trips/trips/available (b2cTripRoutes.js)
-      // Query parameters: routeId and date are required
+      // Only call if routeId is available - backend requires it
+      if (!routeId) {
+        setTrips([]);
+        return;
+      }
+      
       const response = await api.get("/b2c-trips/trips/available", {
         params: {
           routeId,
@@ -55,11 +80,12 @@ function EmployeeTripBooking() {
   const fetchMyBookings = async () => {
     try {
       setLoading(true);
-      // Backend: GET /api/b2c-trips/bookings (b2cTripRoutes.js)
       const response = await api.get("/b2c-trips/bookings");
-      setMyBookings(response.data.data?.bookings || response.data.bookings || []);
+      const data = response.data.data?.bookings || response.data.bookings || response.data.data || [];
+      setMyBookings(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching bookings:", error);
+      setMyBookings([]);
     } finally {
       setLoading(false);
     }
@@ -68,10 +94,15 @@ function EmployeeTripBooking() {
   const fetchMonthlyPasses = async () => {
     try {
       setLoading(true);
-      // Backend: GET /api/monthly-pass/user (b2cMonthlyPassRoutes.js)
-      // Uses authenticated user from JWT token
-      const response = await api.get("/monthly-pass/user");
-      setMonthlyPasses(response.data.data?.passes || response.data.passes || []);
+      // Backend route is /monthly-pass/user/:userId
+      const userId = user?._id || user?.id;
+      if (!userId) {
+        setMonthlyPasses([]);
+        return;
+      }
+      const response = await api.get(`/monthly-pass/user/${userId}`);
+      const data = response.data.data?.passes || response.data.passes || response.data.data || [];
+      setMonthlyPasses(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching monthly passes:", error);
       setMonthlyPasses([]);

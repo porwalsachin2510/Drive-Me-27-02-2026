@@ -21,10 +21,9 @@ export default function EmployeeDashboard() {
   // Fetch employee's assigned route/trip info
   useEffect(() => {
     fetchTripInfo();
-    fetchMyBookings();
-    fetchTravelHistory();
+    fetchDashboardData();
     fetchNotifications();
-  }, [user?.id]);
+  }, [user?.id, user?._id]);
 
   const fetchTripInfo = async () => {
     try {
@@ -41,25 +40,25 @@ export default function EmployeeDashboard() {
     }
   };
 
-  const fetchMyBookings = async () => {
+  // Single dashboard call that provides both bookings and history
+  const fetchDashboardData = async () => {
     try {
       const response = await api.get("/corporate-employee-users/dashboard");
       const dashboardData = response.data?.data;
-      setMyBookings(dashboardData?.upcomingTrips || dashboardData?.bookings || []);
+      
+      // Extract bookings - ensure it's always an array
+      const bookingsData = dashboardData?.upcomingTrips || dashboardData?.bookings || [];
+      setMyBookings(Array.isArray(bookingsData) ? bookingsData : []);
+      
+      // Extract history - ensure it's always an array
+      const historyData = dashboardData?.travelHistory || dashboardData?.recentTrips || [];
+      setHistory(Array.isArray(historyData) ? historyData : []);
     } catch (err) {
-      console.error("Error fetching bookings:", err);
+      console.error("Error fetching dashboard data:", err);
+      setMyBookings([]);
+      setHistory([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchTravelHistory = async () => {
-    try {
-      const response = await api.get("/corporate-employee-users/dashboard");
-      const dashboardData = response.data?.data;
-      setHistory(dashboardData?.travelHistory || dashboardData?.recentTrips || []);
-    } catch (err) {
-      console.error("Error fetching history:", err);
     }
   };
 

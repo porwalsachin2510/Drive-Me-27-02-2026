@@ -208,28 +208,30 @@ export default function CorporateEmployeeDashboard() {
               <div className="section-content">
                 <div className="assigned-bus-card">
                   <h2>Your Assigned Bus Route</h2>
-                  {assignedBus ? (
+                  {assignedBus?.route ? (
                     <div className="bus-details">
                       <div className="route-info">
                         <div className="route-item">
                           <label>From:</label>
                           <span>
-                            {assignedBus?.fromLocation || "Loading..."}
+                            {assignedBus.route?.fromLocation || "Loading..."}
                           </span>
                         </div>
                         <div className="route-item">
                           <label>To:</label>
-                          <span>{assignedBus?.toLocation || "Loading..."}</span>
+                          <span>{assignedBus.route?.toLocation || "Loading..."}</span>
                         </div>
                         <div className="route-item">
-                          <label>Distance:</label>
-                          <span>{assignedBus?.totalDistance || "N/A"} km</span>
+                          <label>Pickup Stop:</label>
+                          <span>{assignedBus.pickupStop || "Not assigned"}</span>
                         </div>
                         <div className="route-item">
-                          <label>Estimated Duration:</label>
-                          <span>
-                            {assignedBus?.estimatedDuration || "N/A"} mins
-                          </span>
+                          <label>Dropoff Stop:</label>
+                          <span>{assignedBus.dropoffStop || "Not assigned"}</span>
+                        </div>
+                        <div className="route-item">
+                          <label>Shift Type:</label>
+                          <span>{assignedBus.shiftType || "Full Day"}</span>
                         </div>
                       </div>
 
@@ -238,15 +240,15 @@ export default function CorporateEmployeeDashboard() {
                         <div className="driver-details">
                           <p>
                             <strong>Name:</strong>{" "}
-                            {assignedBus?.driverName || "To be assigned"}
+                            {assignedBus.driver?.fullName || "To be assigned"}
                           </p>
                           <p>
                             <strong>Phone:</strong>{" "}
-                            {assignedBus?.driverPhone || "N/A"}
+                            {assignedBus.driver?.phone || "N/A"}
                           </p>
                           <p>
-                            <strong>License:</strong>{" "}
-                            {assignedBus?.driverLicense || "N/A"}
+                            <strong>Email:</strong>{" "}
+                            {assignedBus.driver?.email || "N/A"}
                           </p>
                         </div>
                       </div>
@@ -255,19 +257,39 @@ export default function CorporateEmployeeDashboard() {
                         <h3>Vehicle Information</h3>
                         <div className="vehicle-details">
                           <p>
+                            <strong>Vehicle:</strong>{" "}
+                            {assignedBus.vehicle
+                              ? `${assignedBus.vehicle.make || ""} ${assignedBus.vehicle.model || ""}`.trim() || "N/A"
+                              : "Not assigned"}
+                          </p>
+                          <p>
                             <strong>Type:</strong>{" "}
-                            {assignedBus?.vehicleType || "N/A"}
+                            {assignedBus.vehicle?.vehicleType || "N/A"}
                           </p>
                           <p>
                             <strong>License Plate:</strong>{" "}
-                            {assignedBus?.licensePlate || "N/A"}
+                            {assignedBus.vehicle?.licensePlate || "N/A"}
                           </p>
                           <p>
                             <strong>Capacity:</strong>{" "}
-                            {assignedBus?.totalSeats || "N/A"} seats
+                            {assignedBus.vehicle?.capacity || "N/A"} seats
                           </p>
                         </div>
                       </div>
+
+                      {assignedBus.route?.stopPoints && assignedBus.route.stopPoints.length > 0 && (
+                        <div className="stop-points-info">
+                          <h3>Stop Points</h3>
+                          <div className="stop-points-list">
+                            {assignedBus.route.stopPoints.map((stop, index) => (
+                              <div key={index} className="stop-point-item">
+                                <span className="stop-location">{stop.location}</span>
+                                <span className="stop-time">{stop.time || "Time not set"}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="no-bus-assigned">
