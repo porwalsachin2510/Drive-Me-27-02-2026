@@ -87,7 +87,7 @@ export default function EmployeeDashboard() {
         reason: "Personal",
       });
       fetchTripInfo();
-      fetchMyBookings();
+      fetchDashboardData();
     } catch (err) {
       console.error("Error marking not traveling:", err);
     }
@@ -96,7 +96,7 @@ export default function EmployeeDashboard() {
   const handleRateTrip = async (tripId, rating, feedback) => {
     try {
       await api.post("/corporate-employee-users/rate-trip", { tripId, rating, feedback });
-      fetchTravelHistory();
+      fetchDashboardData();
     } catch (err) {
       console.error("Error rating trip:", err);
     }

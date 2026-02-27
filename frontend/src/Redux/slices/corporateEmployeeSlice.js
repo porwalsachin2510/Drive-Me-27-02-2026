@@ -170,7 +170,8 @@ const corporateEmployeeSlice = createSlice({
         state.trips.loading = false;
         // Dashboard API returns { success, data: { upcomingTrips, bookings, travelHistory, ... } }
         const payload = action.payload;
-        state.trips.data = payload?.data?.upcomingTrips || payload?.data?.bookings || payload?.trips || [];
+        const tripsData = payload?.data?.upcomingTrips || payload?.data?.bookings || payload?.trips || [];
+        state.trips.data = Array.isArray(tripsData) ? tripsData : [];
         state.trips.date = action.payload.date || new Date().toISOString().split('T')[0];
       })
       .addCase(fetchEmployeeTrips.rejected, (state, action) => {
@@ -222,7 +223,8 @@ const corporateEmployeeSlice = createSlice({
       .addCase(fetchNotifications.fulfilled, (state, action) => {
         state.notifications.loading = false;
         const payload = action.payload;
-        state.notifications.data = payload?.data?.notifications || payload?.notifications || [];
+        const notifsData = payload?.data?.notifications || payload?.notifications || [];
+        state.notifications.data = Array.isArray(notifsData) ? notifsData : [];
       })
       .addCase(fetchNotifications.rejected, (state, action) => {
         state.notifications.loading = false;
