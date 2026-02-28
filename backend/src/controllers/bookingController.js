@@ -1501,41 +1501,48 @@ export const getPartnerBookings = async (req, res) => {
 
 export const getCorporateOwnerBookings = async (req, res) => {
     try {
-        const corporateOwnerId = req.userId
-        const { status, date } = req.query
-
-        const query = { corporateOwnerId }
-
-        if (status) {
-            query.bookingStatus = status
-        }
-
-        if (date) {
-            const dateObj = new Date(date)
-            query.travelDate = {
-                $gte: new Date(dateObj.setHours(0, 0, 0, 0)),
-                $lt: new Date(dateObj.setHours(23, 59, 59, 999)),
-            }
-        }
-
-        const bookings = await CorporateBooking.find(query)
-            .populate("passengerId", "fullName whatsappNumber email")
-            .populate("routeId", "fromLocation toLocation departureTime")
-            .sort({ travelDate: -1, createdAt: -1 })
-
-        return res.status(200).json({
-            success: true,
-            bookings,
-            totalBookings: bookings.length,
-        })
-    } catch (error) {
-        console.error("Error fetching corporate owner bookings:", error)
-        return res.status(500).json({
-            success: false,
-            message: "Server error",
-        })
+    const corporateOwnerId = req.userId
+    const { status, date } = req.query
+    
+    console.log("[v0] Fetching corporate owner bookings for:", corporateOwnerId)
+    
+    const query = { corporateOwnerId }
+    
+    if (status) {
+      query.bookingStatus = status
     }
-}
+    
+    if (date) {
+      const dateObj = new Date(date)
+      query.travelDate = {
+        $gte: new Date(dateObj.setHours(0, 0, 0, 0)),
+        $lt: new Date(dateObj.setHours(23, 59, 59, 999)),
+      }
+    }
+    
+    const bookings = await CorporateBooking.find(query)
+      .populate("passengerId", "fullName whatsappNumber email")
+      .populate("driverId", "fullName whatsappNumber email")
+      .populate("vehicleId", "model licensePlate")
+      .populate("routeId", "fromLocation toLocation startTime endTime")
+      .populate("contractId", "contractNumber status")
+      .sort({ travelDate: -1, createdAt: -1 })
+    
+    console.log("[v0] Found corporate owner bookings:", bookings.length)
+    
+    return res.status(200).json({
+      success: true,
+      bookings,
+      totalBookings: bookings.length,
+    })
+    } catch (error) {
+      console.error("[v0] Error fetching corporate owner bookings:", error)
+      return res.status(500).json({
+        success: false,
+        message: "Server error",
+      })
+    }
+  }
 
 // Verify booking payment (Stripe)
 export const verifyBookingPayment = async (req, res) => {
@@ -1760,8 +1767,10 @@ export const getAvailableSeats = async (req, res) => {
 // Get B2B_Partner driver bookings
 export const getB2B_PartnerDriverBookings = async (req, res) => {
     try {
-        const driverId = req.userId
+        const driverId = req.params.driverId || req.userId
         const { status } = req.query
+
+        console.log("[v0] Fetching B2B driver bookings for driverId:", driverId)
 
         const query = { driverId }
         if (status) {
@@ -1771,7 +1780,12 @@ export const getB2B_PartnerDriverBookings = async (req, res) => {
         const bookings = await CorporateBooking.find(query)
             .populate("passengerId", "fullName whatsappNumber email")
             .populate("corporateOwnerId", "companyName")
+            .populate("driverId", "fullName whatsappNumber email")
+            .populate("vehicleId")
+            .populate("routeId")
             .sort({ createdAt: -1 })
+
+        console.log("[v0] Found bookings:", bookings.length)
 
         res.status(200).json({
             success: true,
@@ -1779,7 +1793,7 @@ export const getB2B_PartnerDriverBookings = async (req, res) => {
             count: bookings.length,
         })
     } catch (error) {
-        console.error("Error fetching corporate driver bookings:", error)
+        console.error("Error fetching B2B driver bookings:", error)
         res.status(500).json({
             success: false,
             message: "Error fetching bookings",
@@ -1917,36 +1931,44 @@ export const completeB2B_PartnerDriverBooking = async (req, res) => {
     }
 }
 
-// Get corporate driver bookings
-export const getCorporateDriverBookings = async (req, res) => {
+  // Get corporate driver bookings
+  export const getCorporateDriverBookings = async (req, res) => {
     try {
-        const driverId = req.userId
-        const { status } = req.query
+    const driverId = req.params.driverId || req.userId
+    const { status } = req.query
 
-        const query = { driverId }
-        if (status) {
-            query.bookingStatus = status
-        }
+    console.log("[v0] Fetching corporate driver bookings for driverId:", driverId)
 
-        const bookings = await CorporateBooking.find(query)
-            .populate("passengerId", "fullName whatsappNumber email")
-            .populate("corporateOwnerId", "companyName")
-            .sort({ createdAt: -1 })
-
-        res.status(200).json({
-            success: true,
-            bookings,
-            count: bookings.length,
-        })
-    } catch (error) {
-        console.error("Error fetching corporate driver bookings:", error)
-        res.status(500).json({
-            success: false,
-            message: "Error fetching bookings",
-            error: error.message,
-        })
+    const query = { driverId }
+    if (status) {
+      query.bookingStatus = status
     }
-}
+
+    const bookings = await CorporateBooking.find(query)
+      .populate("passengerId", "fullName whatsappNumber email")
+      .populate("corporateOwnerId", "companyName")
+      .populate("driverId", "fullName whatsappNumber email")
+      .populate("vehicleId")
+      .populate("routeId")
+      .populate("contractId")
+      .sort({ travelDate: -1 })
+
+    console.log("[v0] Found corporate driver bookings:", bookings.length)
+
+    res.status(200).json({
+      success: true,
+      bookings,
+      count: bookings.length,
+    })
+    } catch (error) {
+      console.error("[v0] Error fetching corporate driver bookings:", error)
+      res.status(500).json({
+        success: false,
+        message: "Error fetching bookings",
+        error: error.message,
+      })
+    }
+  }
 
 // Start Corporate Trip
 export const startCorporateTrip = async (req, res) => {

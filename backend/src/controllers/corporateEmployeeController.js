@@ -2,6 +2,7 @@ import CorporateEmployee from "../models/CorporateEmployee.js";
 import User from "../models/User.js";
 import Contract from "../models/Contract.js";
 import Route from "../models/Route.js";
+import CorporateBooking from "../models/CorporateBooking.js";
 import { sendEmail } from "../Services/emailService.js";
 import csv from "csv-parser";
 import fs from "fs";
@@ -1118,7 +1119,7 @@ export const assignStopsToEmployee = async (req, res) => {
 export const assignRouteToEmployee = async (req, res) => {
     try {
         const { employeeId } = req.params;
-        const { routeId, pickupLocation, dropoffLocation } = req.body;
+        const { routeId, pickupLocation, dropoffLocation, startDate, endDate } = req.body;
         const managerId = req.userId;
         const companyId = await resolveCompanyId(req.userId);
 
@@ -1149,6 +1150,18 @@ export const assignRouteToEmployee = async (req, res) => {
             });
         }
 
+        // Get the contract for this employee
+        const contract = await Contract.findOne({
+            _id: route.contractId || { $exists: false }
+        });
+
+        if (!contract) {
+            return res.status(404).json({
+                success: false,
+                message: "Associated contract not found"
+            });
+        }
+
         // Update employee transport details with route assignment
         employee.transportDetails = employee.transportDetails || {};
         employee.transportDetails.assignedRoute = routeId;
@@ -1158,6 +1171,51 @@ export const assignRouteToEmployee = async (req, res) => {
 
         await employee.save();
 
+        // AUTO-CREATE BOOKINGS FOR EMPLOYEE
+        // Create daily bookings starting from today for the next 30 days
+        const assignmentStartDate = startDate ? new Date(startDate) : new Date();
+        const assignmentEndDate = endDate ? new Date(endDate) : new Date(new Date().setDate(new Date().getDate() + 30));
+        
+        let bookingsCreated = 0;
+        const bookingPromises = [];
+
+        for (let d = new Date(assignmentStartDate); d <= assignmentEndDate; d.setDate(d.getDate() + 1)) {
+            // Check if route is available on this day
+            const daysOfWeek = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+            const dayOfWeek = daysOfWeek[d.getDay()];
+
+            if (route.availableDays && route.availableDays.includes(dayOfWeek)) {
+                const booking = new CorporateBooking({
+                    passengerId: employee.userId,
+                    corporateOwnerId: companyId,
+                    routeId: routeId,
+                    contractId: contract._id,
+                    driverId: route.driverId || null,
+                    vehicleId: route.vehicleId || null,
+                    pickupLocation: employee.transportDetails.pickupPoint,
+                    dropoffLocation: employee.transportDetails.dropOffPoint,
+                    travelPath: route.travelPath || [],
+                    bookingDate: new Date(),
+                    travelDate: new Date(d),
+                    numberOfSeats: 1,
+                    bookingStatus: "CONFIRMED",
+                    vehicleModel: route.vehicleModel || "TBD",
+                    vehiclePlate: route.vehiclePlate || "TBD",
+                    driverName: route.driverName || "TBD",
+                    driverImage: route.driverImage || null,
+                });
+
+                bookingPromises.push(booking.save());
+                bookingsCreated++;
+            }
+        }
+
+        // Save all bookings in parallel
+        if (bookingPromises.length > 0) {
+            await Promise.all(bookingPromises);
+            console.log(`[v0] Auto-created ${bookingsCreated} bookings for employee ${employeeId}`);
+        }
+
         res.status(200).json({
             success: true,
             message: "Route assigned to employee successfully",
@@ -1166,12 +1224,17 @@ export const assignRouteToEmployee = async (req, res) => {
                 routeId: route._id,
                 routeName: route.fromLocation + " → " + route.toLocation,
                 pickupLocation: employee.transportDetails.pickupPoint,
-                dropoffLocation: employee.transportDetails.dropOffPoint
+                dropoffLocation: employee.transportDetails.dropOffPoint,
+                bookingsCreated: bookingsCreated,
+                bookingPeriod: {
+                    startDate: assignmentStartDate,
+                    endDate: assignmentEndDate
+                }
             }
         });
 
     } catch (error) {
-        console.error("Error assigning route to employee:", error);
+        console.error("[v0] Error assigning route to employee:", error);
         res.status(500).json({
             success: false,
             message: "Error assigning route to employee",

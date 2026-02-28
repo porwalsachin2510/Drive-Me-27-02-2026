@@ -533,14 +533,17 @@ export const getCorporateEmployeeBookings = async (req, res) => {
         const corporateOwnerId = req.userId;
         const { status, startDate, endDate, employeeId, page = 1, limit = 20 } = req.query;
 
+        console.log("[v0] Fetching corporate bookings for corporateOwnerId:", corporateOwnerId);
+
         const filter = { corporateOwnerId };
 
-        if (status) filter.status = status;
+        // Use correct field name: bookingStatus not status
+        if (status) filter.bookingStatus = status;
         if (employeeId) filter.passengerId = employeeId;
         if (startDate || endDate) {
-            filter.bookingDate = {};
-            if (startDate) filter.bookingDate.$gte = new Date(startDate);
-            if (endDate) filter.bookingDate.$lte = new Date(endDate);
+            filter.travelDate = {};
+            if (startDate) filter.travelDate.$gte = new Date(startDate);
+            if (endDate) filter.travelDate.$lte = new Date(endDate);
         }
 
         const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -548,9 +551,10 @@ export const getCorporateEmployeeBookings = async (req, res) => {
         const bookings = await CorporateBooking.find(filter)
             .populate("passengerId", "fullName email whatsappNumber")
             .populate("routeId", "fromLocation toLocation startTime endTime")
-            .populate("driverId", "fullName email")
+            .populate("driverId", "fullName email whatsappNumber")
+            .populate("vehicleId", "model licensePlate")
             .populate("contractId", "contractNumber status")
-            .sort({ bookingDate: -1 })
+            .sort({ travelDate: -1 })
             .skip(skip)
             .limit(parseInt(limit));
 
@@ -558,13 +562,17 @@ export const getCorporateEmployeeBookings = async (req, res) => {
 
         const summary = {
             total: totalCount,
-            active: await CorporateBooking.countDocuments({ corporateOwnerId, status: "CONFIRMED" }),
-            completed: await CorporateBooking.countDocuments({ corporateOwnerId, status: "COMPLETED" }),
-            cancelled: await CorporateBooking.countDocuments({ corporateOwnerId, status: "CANCELLED" }),
+            confirmed: await CorporateBooking.countDocuments({ corporateOwnerId, bookingStatus: "CONFIRMED" }),
+            inProgress: await CorporateBooking.countDocuments({ corporateOwnerId, bookingStatus: "IN_PROGRESS" }),
+            completed: await CorporateBooking.countDocuments({ corporateOwnerId, bookingStatus: "COMPLETED" }),
+            cancelled: await CorporateBooking.countDocuments({ corporateOwnerId, bookingStatus: "CANCELLED" }),
         };
+
+        console.log("[v0] Found bookings:", bookings.length, "summary:", summary);
 
         res.status(200).json({
             success: true,
+            bookings,
             data: {
                 bookings,
                 pagination: {
@@ -577,7 +585,7 @@ export const getCorporateEmployeeBookings = async (req, res) => {
             },
         });
     } catch (error) {
-        console.error("Error fetching corporate employee bookings:", error);
+        console.error("[v0] Error fetching corporate employee bookings:", error);
         res.status(500).json({
             success: false,
             message: "Failed to fetch employee bookings",
