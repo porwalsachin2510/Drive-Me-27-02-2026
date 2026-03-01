@@ -527,69 +527,143 @@ export const getTripDetails = async (req, res) => {
 
 // @desc    Get all employee bookings for corporate operations
 // @route   GET /api/corporate-operations/bookings
-// @access  Private (CORPORATE only)
-export const getCorporateEmployeeBookings = async (req, res) => {
-    try {
-        const corporateOwnerId = req.userId;
-        const { status, startDate, endDate, employeeId, page = 1, limit = 20 } = req.query;
-
-        console.log("[v0] Fetching corporate bookings for corporateOwnerId:", corporateOwnerId);
-
-        const filter = { corporateOwnerId };
-
-        // Use correct field name: bookingStatus not status
-        if (status) filter.bookingStatus = status;
-        if (employeeId) filter.passengerId = employeeId;
-        if (startDate || endDate) {
-            filter.travelDate = {};
-            if (startDate) filter.travelDate.$gte = new Date(startDate);
-            if (endDate) filter.travelDate.$lte = new Date(endDate);
-        }
-
-        const skip = (parseInt(page) - 1) * parseInt(limit);
-
-        const bookings = await CorporateBooking.find(filter)
-            .populate("passengerId", "fullName email whatsappNumber")
-            .populate("routeId", "fromLocation toLocation startTime endTime")
-            .populate("driverId", "fullName email whatsappNumber")
-            .populate("vehicleId", "model licensePlate")
-            .populate("contractId", "contractNumber status")
-            .sort({ travelDate: -1 })
-            .skip(skip)
-            .limit(parseInt(limit));
-
-        const totalCount = await CorporateBooking.countDocuments(filter);
-
-        const summary = {
-            total: totalCount,
-            confirmed: await CorporateBooking.countDocuments({ corporateOwnerId, bookingStatus: "CONFIRMED" }),
-            inProgress: await CorporateBooking.countDocuments({ corporateOwnerId, bookingStatus: "IN_PROGRESS" }),
-            completed: await CorporateBooking.countDocuments({ corporateOwnerId, bookingStatus: "COMPLETED" }),
-            cancelled: await CorporateBooking.countDocuments({ corporateOwnerId, bookingStatus: "CANCELLED" }),
-        };
-
-        console.log("[v0] Found bookings:", bookings.length, "summary:", summary);
-
-        res.status(200).json({
-            success: true,
-            bookings,
-            data: {
-                bookings,
-                pagination: {
-                    currentPage: parseInt(page),
-                    totalPages: Math.ceil(totalCount / parseInt(limit)),
-                    totalItems: totalCount,
-                    itemsPerPage: parseInt(limit),
-                },
-                summary,
-            },
-        });
-    } catch (error) {
-        console.error("[v0] Error fetching corporate employee bookings:", error);
-        res.status(500).json({
-            success: false,
-            message: "Failed to fetch employee bookings",
-            error: error.message,
-        });
+  // @access  Private (CORPORATE only)
+  export const getCorporateEmployeeBookings = async (req, res) => {
+  try {
+  const corporateOwnerId = req.userId;
+  const { status, startDate, endDate, employeeId, page = 1, limit = 20 } = req.query;
+  
+  console.log("[v0] Fetching corporate bookings for corporateOwnerId:", corporateOwnerId);
+  
+  // Query Trip model for corporate trips with passengers
+  const tripFilter = { corporateId: corporateOwnerId };
+  
+  if (status) {
+    tripFilter.status = status;
+  }
+  
+  if (startDate || endDate) {
+    tripFilter.tripDate = {};
+    if (startDate) tripFilter.tripDate.$gte = new Date(startDate);
+    if (endDate) tripFilter.tripDate.$lte = new Date(endDate);
+  }
+  
+  // Get trips with passengers
+  const trips = await Trip.find(tripFilter)
+    .populate("routeId", "fromLocation toLocation startTime endTime")
+    .populate("driverId", "fullName email whatsappNumber")
+    .populate("vehicleId", "model licensePlate")
+    .populate("contractId", "contractNumber status")
+    .populate("passengers.employeeId", "fullName email whatsappNumber")
+    .sort({ tripDate: -1 });
+  
+  console.log("[v0] Found trips:", trips.length);
+  
+  // Transform trips to bookings format for frontend
+  let bookings = [];
+  let totalPassengers = 0;
+  
+  for (const trip of trips) {
+    for (const passenger of trip.passengers) {
+      // Filter by employeeId if provided
+      if (employeeId && passenger.employeeId?._id?.toString() !== employeeId) {
+        continue;
+      }
+      
+      // Filter by passenger booking status if status provided
+      if (status && passenger.bookingStatus !== status) {
+        continue;
+      }
+      
+      totalPassengers++;
+      
+      bookings.push({
+        _id: passenger._id,
+        tripId: trip._id,
+        passengerId: passenger.employeeId,
+        employee: passenger.employeeId,
+        employeeName: passenger.employeeId?.fullName || "Unknown",
+        employeeEmail: passenger.employeeId?.email,
+        employeePhone: passenger.employeeId?.whatsappNumber,
+        seatNumber: passenger.seatNumber,
+        pickupPoint: passenger.pickupPoint,
+        pickupTime: passenger.pickupTime,
+        bookingStatus: passenger.bookingStatus,
+        bookedAt: passenger.bookedAt,
+        tripDate: trip.tripDate,
+        startTime: trip.startTime,
+        endTime: trip.endTime,
+        tripType: trip.tripType,
+        direction: trip.direction,
+        fromLocation: trip.fromLocation,
+        toLocation: trip.toLocation,
+        status: trip.status,
+        tripStatus: trip.status,
+        route: trip.routeId,
+        driver: trip.driverId,
+        driverName: trip.driverId?.fullName,
+        vehicle: trip.vehicleId,
+        vehicleModel: trip.vehicleId?.model,
+        vehiclePlate: trip.vehicleId?.licensePlate,
+        contract: trip.contractId,
+      });
     }
-};
+  }
+  
+  // Apply pagination
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const paginatedBookings = bookings.slice(skip, skip + parseInt(limit));
+  
+  // Calculate summary from Trip model
+  const allTrips = await Trip.find({ corporateId: corporateOwnerId });
+  let confirmed = 0, inProgress = 0, completed = 0, cancelled = 0;
+  
+  for (const trip of allTrips) {
+    for (const p of trip.passengers) {
+      if (p.bookingStatus === "CONFIRMED") {
+        if (trip.status === "IN_PROGRESS") inProgress++;
+        else if (trip.status === "COMPLETED") completed++;
+        else confirmed++;
+      }
+      if (p.bookingStatus === "CANCELLED") cancelled++;
+    }
+  }
+  
+  const summary = {
+    total: totalPassengers,
+    confirmed,
+    inProgress,
+    completed,
+    cancelled,
+  };
+  
+  // Get total employees from CorporateEmployee model
+  const totalEmployees = await CorporateEmployee.countDocuments({ companyId: corporateOwnerId });
+  
+  console.log("[v0] Found bookings:", paginatedBookings.length, "summary:", summary);
+  
+  res.status(200).json({
+    success: true,
+    bookings: paginatedBookings,
+    totalBookings: totalPassengers,
+    totalEmployees,
+    data: {
+      bookings: paginatedBookings,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalPassengers / parseInt(limit)),
+        totalItems: totalPassengers,
+        itemsPerPage: parseInt(limit),
+      },
+      summary,
+    },
+  });
+  } catch (error) {
+  console.error("[v0] Error fetching corporate employee bookings:", error);
+  res.status(500).json({
+  success: false,
+  message: "Failed to fetch employee bookings",
+  error: error.message,
+  });
+  }
+  };

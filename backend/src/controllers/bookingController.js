@@ -1,5 +1,6 @@
 import B2CPassengerBooking from "../models/B2CPassengerBooking.js"
 import CorporateBooking from "../models/CorporateBooking.js"
+import Trip from "../models/Trip.js"
 import User from "../models/User.js"
 import Route from "../models/Route.js"
 import B2CPartnerRoute from "../models/B2CPartnerRoute.js"
@@ -1504,29 +1505,86 @@ export const getCorporateOwnerBookings = async (req, res) => {
     const corporateOwnerId = req.userId
     const { status, date } = req.query
     
-    console.log("[v0] Fetching corporate owner bookings for:", corporateOwnerId)
+    console.log("[v0] Fetching corporate owner bookings from Trip model for:", corporateOwnerId)
     
-    const query = { corporateOwnerId }
+    // Query Trip model for corporate trips
+    const tripQuery = { corporateId: corporateOwnerId }
     
     if (status) {
-      query.bookingStatus = status
+      tripQuery.status = status
     }
     
     if (date) {
       const dateObj = new Date(date)
-      query.travelDate = {
-        $gte: new Date(dateObj.setHours(0, 0, 0, 0)),
-        $lt: new Date(dateObj.setHours(23, 59, 59, 999)),
+      const startOfDay = new Date(dateObj.setHours(0, 0, 0, 0))
+      const endOfDay = new Date(dateObj.setHours(23, 59, 59, 999))
+      tripQuery.tripDate = {
+        $gte: startOfDay,
+        $lt: endOfDay,
       }
     }
     
-    const bookings = await CorporateBooking.find(query)
-      .populate("passengerId", "fullName whatsappNumber email")
+    // Get all trips for this corporate
+    const trips = await Trip.find(tripQuery)
       .populate("driverId", "fullName whatsappNumber email")
       .populate("vehicleId", "model licensePlate")
       .populate("routeId", "fromLocation toLocation startTime endTime")
       .populate("contractId", "contractNumber status")
-      .sort({ travelDate: -1, createdAt: -1 })
+      .populate("passengers.employeeId", "fullName whatsappNumber email")
+      .sort({ tripDate: -1, createdAt: -1 })
+    
+    console.log("[v0] Found trips:", trips.length)
+    
+    // Transform trips to bookings format for frontend
+    const bookings = []
+    
+    for (const trip of trips) {
+      for (const passenger of trip.passengers) {
+        // Filter by status if provided
+        if (status && passenger.bookingStatus !== status) {
+          continue
+        }
+        
+        bookings.push({
+          _id: passenger._id,
+          tripId: trip._id,
+          passengerId: passenger.employeeId,
+          employee: passenger.employeeId,
+          employeeName: passenger.employeeId?.fullName || "Unknown",
+          employeeEmail: passenger.employeeId?.email,
+          employeePhone: passenger.employeeId?.whatsappNumber,
+          seatNumber: passenger.seatNumber,
+          pickupPoint: passenger.pickupPoint,
+          pickupTime: passenger.pickupTime,
+          bookingStatus: passenger.bookingStatus,
+          bookedAt: passenger.bookedAt,
+          travelDate: trip.tripDate,
+          tripDate: trip.tripDate,
+          startTime: trip.startTime,
+          endTime: trip.endTime,
+          tripType: trip.tripType,
+          direction: trip.direction,
+          fromLocation: trip.fromLocation,
+          toLocation: trip.toLocation,
+          status: trip.status,
+          tripStatus: trip.status,
+          numberOfSeats: 1,
+          route: trip.routeId,
+          routeId: trip.routeId,
+          driver: trip.driverId,
+          driverId: trip.driverId,
+          driverName: trip.driverId?.fullName,
+          vehicle: trip.vehicleId,
+          vehicleId: trip.vehicleId,
+          vehicleModel: trip.vehicleId?.model,
+          vehiclePlate: trip.vehicleId?.licensePlate,
+          contract: trip.contractId,
+          contractId: trip.contractId,
+          currentLocation: trip.currentLocation,
+          driverLocation: trip.driverLocation,
+        })
+      }
+    }
     
     console.log("[v0] Found corporate owner bookings:", bookings.length)
     
@@ -1764,36 +1822,83 @@ export const getAvailableSeats = async (req, res) => {
     }
 }
 
-// Get B2B_Partner driver bookings
+// Get B2B_Partner driver bookings from Trip model
 export const getB2B_PartnerDriverBookings = async (req, res) => {
     try {
         const driverId = req.params.driverId || req.userId
         const { status } = req.query
 
-        console.log("[v0] Fetching B2B driver bookings for driverId:", driverId)
+        console.log("[v0] Fetching B2B driver trips for driverId:", driverId)
 
+        // Query Trip model where driver is assigned
         const query = { driverId }
         if (status) {
-            query.bookingStatus = status
+            query.status = status
         }
 
-        const bookings = await CorporateBooking.find(query)
-            .populate("passengerId", "fullName whatsappNumber email")
-            .populate("corporateOwnerId", "companyName")
-            .populate("driverId", "fullName whatsappNumber email")
-            .populate("vehicleId")
+        // Get all trips assigned to this driver that have passengers
+        const trips = await Trip.find(query)
             .populate("routeId")
-            .sort({ createdAt: -1 })
+            .populate("vehicleId")
+            .populate("corporateId", "companyName fullName")
+            .populate("b2bPartnerId", "companyName fullName")
+            .populate("passengers.employeeId", "fullName email whatsappNumber")
+            .sort({ tripDate: -1 })
 
-        console.log("[v0] Found bookings:", bookings.length)
+        console.log("[v0] Found trips:", trips.length)
+
+        // Transform trips into booking format for frontend compatibility
+        const bookings = trips.map(trip => {
+            // Get passengers with CONFIRMED status
+            const confirmedPassengers = trip.passengers.filter(p => 
+                status ? p.bookingStatus === status : true
+            )
+            
+            return {
+                _id: trip._id,
+                tripId: trip._id,
+                tripDate: trip.tripDate,
+                startTime: trip.startTime,
+                endTime: trip.endTime,
+                tripType: trip.tripType,
+                direction: trip.direction,
+                fromLocation: trip.fromLocation,
+                toLocation: trip.toLocation,
+                totalDistance: trip.totalDistance,
+                estimatedDuration: trip.estimatedDuration,
+                totalSeats: trip.totalSeats,
+                availableSeats: trip.availableSeats,
+                bookedSeats: trip.bookedSeats,
+                status: trip.status,
+                bookingStatus: trip.status, // Map trip status to bookingStatus for frontend
+                passengers: confirmedPassengers,
+                passengerCount: confirmedPassengers.length,
+                route: trip.routeId,
+                vehicle: trip.vehicleId,
+                corporate: trip.corporateId,
+                b2bPartner: trip.b2bPartnerId,
+                currentLocation: trip.currentLocation,
+                driverLocation: trip.driverLocation,
+                events: trip.events,
+                createdAt: trip.createdAt,
+                updatedAt: trip.updatedAt,
+            }
+        })
+
+        // Filter out trips with no passengers if status filter is applied
+        const filteredBookings = status 
+            ? bookings.filter(b => b.passengerCount > 0)
+            : bookings
+
+        console.log("[v0] Returning bookings:", filteredBookings.length)
 
         res.status(200).json({
             success: true,
-            bookings,
-            count: bookings.length,
+            bookings: filteredBookings,
+            count: filteredBookings.length,
         })
     } catch (error) {
-        console.error("Error fetching B2B driver bookings:", error)
+        console.error("[v0] Error fetching B2B driver bookings:", error)
         res.status(500).json({
             success: false,
             message: "Error fetching bookings",
@@ -1802,18 +1907,80 @@ export const getB2B_PartnerDriverBookings = async (req, res) => {
     }
 }
 
-// Start B2B_Partner Driver Trip
+// Start B2B_Partner Driver Trip - Works with Trip model
 export const startB2B_PartnerDriverTrip = async (req, res) => {
     try {
         const driverId = req.userId
         const { bookingId } = req.params
 
+        console.log("[v0] Starting trip:", bookingId, "by driver:", driverId)
+
+        // Try to find in Trip model first (corporate trips)
+        let trip = await Trip.findById(bookingId)
+            .populate("passengers.employeeId", "fullName email whatsappNumber")
+
+        if (trip) {
+            // It's a Trip model record
+            if (trip.driverId?.toString() !== driverId) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Unauthorized: This trip does not belong to you",
+                })
+            }
+
+            trip.status = "IN_PROGRESS"
+            trip.events.push({
+                eventType: "TRIP_STARTED",
+                timestamp: new Date(),
+                description: "Trip started by driver",
+            })
+            await trip.save()
+
+            // Notify all passengers
+            for (const passenger of trip.passengers) {
+                if (passenger.bookingStatus === "CONFIRMED") {
+                    const tripStartNotification = await createNotification({
+                        userId: passenger.employeeId._id || passenger.employeeId,
+                        type: "TRIP_STARTED",
+                        title: "Trip Started",
+                        message: `Your trip from ${trip.fromLocation} to ${trip.toLocation} has started`,
+                        relatedUserId: driverId,
+                        bookingId: trip._id,
+                    })
+
+                    await sendRealTimeNotification(passenger.employeeId._id || passenger.employeeId, {
+                        type: "TRIP_STARTED",
+                        title: tripStartNotification.title,
+                        message: tripStartNotification.message,
+                        data: {
+                            tripId: trip._id,
+                            driverId,
+                            status: "IN_PROGRESS",
+                            notification: tripStartNotification
+                        }
+                    })
+                }
+            }
+
+            return res.status(200).json({
+                success: true,
+                booking: {
+                    _id: trip._id,
+                    status: trip.status,
+                    bookingStatus: trip.status,
+                    startedAt: new Date(),
+                },
+                message: "Trip started successfully",
+            })
+        }
+
+        // Fallback to CorporateBooking model
         const booking = await CorporateBooking.findById(bookingId)
 
         if (!booking) {
             return res.status(404).json({
                 success: false,
-                message: "Booking not found",
+                message: "Trip/Booking not found",
             })
         }
 
@@ -1838,8 +2005,6 @@ export const startB2B_PartnerDriverTrip = async (req, res) => {
             bookingId: booking._id,
         })
 
-
-        // Send real-time notification to employee
         await sendRealTimeNotification(booking.passengerId, {
             type: "TRIP_STARTED",
             title: tripStartNotification.title,
@@ -1858,7 +2023,7 @@ export const startB2B_PartnerDriverTrip = async (req, res) => {
             message: "Trip started successfully",
         })
     } catch (error) {
-        console.error("Error starting trip:", error)
+        console.error("[v0] Error starting trip:", error)
         res.status(500).json({
             success: false,
             message: "Server error",
@@ -1867,18 +2032,80 @@ export const startB2B_PartnerDriverTrip = async (req, res) => {
     }
 }
 
-// Complete Corporate Booking
+// Complete Corporate Booking - Works with Trip model
 export const completeB2B_PartnerDriverBooking = async (req, res) => {
     try {
         const driverId = req.userId
         const { bookingId } = req.params
 
+        console.log("[v0] Completing trip:", bookingId, "by driver:", driverId)
+
+        // Try to find in Trip model first (corporate trips)
+        let trip = await Trip.findById(bookingId)
+            .populate("passengers.employeeId", "fullName email whatsappNumber")
+
+        if (trip) {
+            // It's a Trip model record
+            if (trip.driverId?.toString() !== driverId) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Unauthorized: This trip does not belong to you",
+                })
+            }
+
+            trip.status = "COMPLETED"
+            trip.events.push({
+                eventType: "TRIP_COMPLETED",
+                timestamp: new Date(),
+                description: "Trip completed by driver",
+            })
+            await trip.save()
+
+            // Notify all passengers
+            for (const passenger of trip.passengers) {
+                if (passenger.bookingStatus === "CONFIRMED") {
+                    const tripCompleteNotification = await createNotification({
+                        userId: passenger.employeeId._id || passenger.employeeId,
+                        type: "RIDE_COMPLETED",
+                        title: "Trip Completed",
+                        message: `Your trip from ${trip.fromLocation} to ${trip.toLocation} has been completed`,
+                        relatedUserId: driverId,
+                        bookingId: trip._id,
+                    })
+
+                    await sendRealTimeNotification(passenger.employeeId._id || passenger.employeeId, {
+                        type: "RIDE_COMPLETED",
+                        title: tripCompleteNotification.title,
+                        message: tripCompleteNotification.message,
+                        data: {
+                            tripId: trip._id,
+                            driverId,
+                            status: "COMPLETED",
+                            notification: tripCompleteNotification
+                        }
+                    })
+                }
+            }
+
+            return res.status(200).json({
+                success: true,
+                booking: {
+                    _id: trip._id,
+                    status: trip.status,
+                    bookingStatus: trip.status,
+                    completedAt: new Date(),
+                },
+                message: "Trip completed successfully",
+            })
+        }
+
+        // Fallback to CorporateBooking model
         const booking = await CorporateBooking.findById(bookingId)
 
         if (!booking) {
             return res.status(404).json({
                 success: false,
-                message: "Booking not found",
+                message: "Trip/Booking not found",
             })
         }
 
@@ -1903,7 +2130,6 @@ export const completeB2B_PartnerDriverBooking = async (req, res) => {
             bookingId: booking._id,
         })
 
-        // Send real-time notification to employee
         await sendRealTimeNotification(booking.passengerId, {
             type: "RIDE_COMPLETED",
             title: corporateTripCompleteNotification.title,
@@ -1919,10 +2145,10 @@ export const completeB2B_PartnerDriverBooking = async (req, res) => {
         res.status(200).json({
             success: true,
             booking,
-            message: "Booking completed successfully",
+            message: "Trip completed successfully",
         })
     } catch (error) {
-        console.error("Error completing corporate booking:", error)
+        console.error("[v0] Error completing trip:", error)
         res.status(500).json({
             success: false,
             message: "Server error",
@@ -1931,34 +2157,78 @@ export const completeB2B_PartnerDriverBooking = async (req, res) => {
     }
 }
 
-  // Get corporate driver bookings
+  // Get corporate driver bookings from Trip model
   export const getCorporateDriverBookings = async (req, res) => {
     try {
     const driverId = req.params.driverId || req.userId
     const { status } = req.query
 
-    console.log("[v0] Fetching corporate driver bookings for driverId:", driverId)
+    console.log("[v0] Fetching corporate driver trips for driverId:", driverId)
 
+    // Query Trip model where driver is assigned
     const query = { driverId }
     if (status) {
-      query.bookingStatus = status
+      query.status = status
     }
 
-    const bookings = await CorporateBooking.find(query)
-      .populate("passengerId", "fullName whatsappNumber email")
-      .populate("corporateOwnerId", "companyName")
-      .populate("driverId", "fullName whatsappNumber email")
-      .populate("vehicleId")
+    // Get all trips assigned to this driver
+    const trips = await Trip.find(query)
       .populate("routeId")
-      .populate("contractId")
-      .sort({ travelDate: -1 })
+      .populate("vehicleId")
+      .populate("corporateId", "companyName fullName")
+      .populate("b2bPartnerId", "companyName fullName")
+      .populate("passengers.employeeId", "fullName email whatsappNumber")
+      .sort({ tripDate: -1 })
 
-    console.log("[v0] Found corporate driver bookings:", bookings.length)
+    console.log("[v0] Found corporate driver trips:", trips.length)
+
+    // Transform trips into booking format for frontend compatibility
+    const bookings = trips.map(trip => {
+      const confirmedPassengers = trip.passengers.filter(p => 
+        status ? p.bookingStatus === status : true
+      )
+      
+      return {
+        _id: trip._id,
+        tripId: trip._id,
+        tripDate: trip.tripDate,
+        startTime: trip.startTime,
+        endTime: trip.endTime,
+        tripType: trip.tripType,
+        direction: trip.direction,
+        fromLocation: trip.fromLocation,
+        toLocation: trip.toLocation,
+        totalDistance: trip.totalDistance,
+        estimatedDuration: trip.estimatedDuration,
+        totalSeats: trip.totalSeats,
+        availableSeats: trip.availableSeats,
+        bookedSeats: trip.bookedSeats,
+        status: trip.status,
+        bookingStatus: trip.status,
+        passengers: confirmedPassengers,
+        passengerCount: confirmedPassengers.length,
+        route: trip.routeId,
+        vehicle: trip.vehicleId,
+        corporate: trip.corporateId,
+        corporateOwnerId: trip.corporateId,
+        currentLocation: trip.currentLocation,
+        driverLocation: trip.driverLocation,
+        events: trip.events,
+        createdAt: trip.createdAt,
+        updatedAt: trip.updatedAt,
+      }
+    })
+
+    const filteredBookings = status 
+      ? bookings.filter(b => b.passengerCount > 0)
+      : bookings
+
+    console.log("[v0] Returning corporate driver bookings:", filteredBookings.length)
 
     res.status(200).json({
       success: true,
-      bookings,
-      count: bookings.length,
+      bookings: filteredBookings,
+      count: filteredBookings.length,
     })
     } catch (error) {
       console.error("[v0] Error fetching corporate driver bookings:", error)
@@ -1970,18 +2240,77 @@ export const completeB2B_PartnerDriverBooking = async (req, res) => {
     }
   }
 
-// Start Corporate Trip
+// Start Corporate Trip - Works with Trip model
 export const startCorporateTrip = async (req, res) => {
     try {
         const driverId = req.userId
         const { bookingId } = req.params
 
+        // Try to find in Trip model first
+        let trip = await Trip.findById(bookingId)
+            .populate("passengers.employeeId", "fullName email whatsappNumber")
+
+        if (trip) {
+            if (trip.driverId?.toString() !== driverId) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Unauthorized: This trip does not belong to you",
+                })
+            }
+
+            trip.status = "IN_PROGRESS"
+            trip.events.push({
+                eventType: "TRIP_STARTED",
+                timestamp: new Date(),
+                description: "Trip started by driver",
+            })
+            await trip.save()
+
+            // Notify all passengers
+            for (const passenger of trip.passengers) {
+                if (passenger.bookingStatus === "CONFIRMED") {
+                    const tripStartNotification = await createNotification({
+                        userId: passenger.employeeId._id || passenger.employeeId,
+                        type: "TRIP_STARTED",
+                        title: "Trip Started",
+                        message: `Your trip from ${trip.fromLocation} to ${trip.toLocation} has started`,
+                        relatedUserId: driverId,
+                        bookingId: trip._id,
+                    })
+
+                    await sendRealTimeNotification(passenger.employeeId._id || passenger.employeeId, {
+                        type: "TRIP_STARTED",
+                        title: tripStartNotification.title,
+                        message: tripStartNotification.message,
+                        data: {
+                            tripId: trip._id,
+                            driverId,
+                            status: "IN_PROGRESS",
+                            notification: tripStartNotification
+                        }
+                    })
+                }
+            }
+
+            return res.status(200).json({
+                success: true,
+                booking: {
+                    _id: trip._id,
+                    status: trip.status,
+                    bookingStatus: trip.status,
+                    startedAt: new Date(),
+                },
+                message: "Trip started successfully",
+            })
+        }
+
+        // Fallback to CorporateBooking model
         const booking = await CorporateBooking.findById(bookingId)
 
         if (!booking) {
             return res.status(404).json({
                 success: false,
-                message: "Booking not found",
+                message: "Trip/Booking not found",
             })
         }
 
@@ -2006,7 +2335,6 @@ export const startCorporateTrip = async (req, res) => {
             bookingId: booking._id,
         })
 
-        // Send real-time notification to employee
         await sendRealTimeNotification(booking.passengerId, {
             type: "TRIP_STARTED",
             title: tripStartNotification.title,
@@ -2025,7 +2353,7 @@ export const startCorporateTrip = async (req, res) => {
             message: "Trip started successfully",
         })
     } catch (error) {
-        console.error("Error starting trip:", error)
+        console.error("Error starting corporate trip:", error)
         res.status(500).json({
             success: false,
             message: "Server error",
@@ -2034,18 +2362,77 @@ export const startCorporateTrip = async (req, res) => {
     }
 }
 
-// Complete Corporate Booking
+// Complete Corporate Booking - Works with Trip model
 export const completeCorporateBooking = async (req, res) => {
     try {
         const driverId = req.userId
         const { bookingId } = req.params
 
+        // Try to find in Trip model first
+        let trip = await Trip.findById(bookingId)
+            .populate("passengers.employeeId", "fullName email whatsappNumber")
+
+        if (trip) {
+            if (trip.driverId?.toString() !== driverId) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Unauthorized: This trip does not belong to you",
+                })
+            }
+
+            trip.status = "COMPLETED"
+            trip.events.push({
+                eventType: "TRIP_COMPLETED",
+                timestamp: new Date(),
+                description: "Trip completed by driver",
+            })
+            await trip.save()
+
+            // Notify all passengers
+            for (const passenger of trip.passengers) {
+                if (passenger.bookingStatus === "CONFIRMED") {
+                    const tripCompleteNotification = await createNotification({
+                        userId: passenger.employeeId._id || passenger.employeeId,
+                        type: "RIDE_COMPLETED",
+                        title: "Trip Completed",
+                        message: `Your trip from ${trip.fromLocation} to ${trip.toLocation} has been completed`,
+                        relatedUserId: driverId,
+                        bookingId: trip._id,
+                    })
+
+                    await sendRealTimeNotification(passenger.employeeId._id || passenger.employeeId, {
+                        type: "RIDE_COMPLETED",
+                        title: tripCompleteNotification.title,
+                        message: tripCompleteNotification.message,
+                        data: {
+                            tripId: trip._id,
+                            driverId,
+                            status: "COMPLETED",
+                            notification: tripCompleteNotification
+                        }
+                    })
+                }
+            }
+
+            return res.status(200).json({
+                success: true,
+                booking: {
+                    _id: trip._id,
+                    status: trip.status,
+                    bookingStatus: trip.status,
+                    completedAt: new Date(),
+                },
+                message: "Trip completed successfully",
+            })
+        }
+
+        // Fallback to CorporateBooking model
         const booking = await CorporateBooking.findById(bookingId)
 
         if (!booking) {
             return res.status(404).json({
                 success: false,
-                message: "Booking not found",
+                message: "Trip/Booking not found",
             })
         }
 
@@ -2070,7 +2457,6 @@ export const completeCorporateBooking = async (req, res) => {
             bookingId: booking._id,
         })
 
-        // Send real-time notification to employee
         await sendRealTimeNotification(booking.passengerId, {
             type: "RIDE_COMPLETED",
             title: corporateTripCompleteNotification.title,
@@ -2086,10 +2472,10 @@ export const completeCorporateBooking = async (req, res) => {
         res.status(200).json({
             success: true,
             booking,
-            message: "Booking completed successfully",
+            message: "Trip completed successfully",
         })
     } catch (error) {
-        console.error("Error completing corporate booking:", error)
+        console.error("Error completing corporate trip:", error)
         res.status(500).json({
             success: false,
             message: "Server error",

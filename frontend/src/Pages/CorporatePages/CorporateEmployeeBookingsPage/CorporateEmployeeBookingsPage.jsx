@@ -50,7 +50,8 @@ const CorporateEmployeeBookingsPage = () => {
   };
 
   const groupedBookings = corporateOwnerBookings.reduce((acc, booking) => {
-    const date = new Date(booking.travelDate).toLocaleDateString();
+    const travelDate = booking.travelDate || booking.tripDate;
+    const date = new Date(travelDate).toLocaleDateString();
     if (!acc[date]) {
       acc[date] = [];
     }
@@ -62,6 +63,31 @@ const CorporateEmployeeBookingsPage = () => {
     (sum, b) => sum + (b.numberOfSeats || 1),
     0,
   );
+  
+  // Helper to get employee name from different data formats
+  const getEmployeeName = (booking) => {
+    return booking.employeeName || 
+           booking.passengerId?.fullName || 
+           booking.employee?.fullName || 
+           "Employee";
+  };
+  
+  const getEmployeeEmail = (booking) => {
+    return booking.employeeEmail || 
+           booking.passengerId?.email || 
+           booking.employee?.email || 
+           booking.passengerId?.whatsappNumber ||
+           booking.employee?.whatsappNumber ||
+           "";
+  };
+  
+  const getPickupLocation = (booking) => {
+    return booking.pickupPoint || booking.pickupLocation || booking.fromLocation || "";
+  };
+  
+  const getDropoffLocation = (booking) => {
+    return booking.dropoffLocation || booking.toLocation || "";
+  };
 
   return (
     <div className="corporate-bookings-page">
@@ -152,15 +178,14 @@ const CorporateEmployeeBookingsPage = () => {
                       <div key={booking._id} className="employee-booking-card">
                         <div className="booking-employee">
                           <div className="employee-avatar">
-                            {booking.passengerId?.fullName?.charAt(0) || "E"}
+                            {getEmployeeName(booking).charAt(0) || "E"}
                           </div>
                           <div className="employee-info">
                             <h4>
-                              {booking.passengerId?.fullName || "Employee"}
+                              {getEmployeeName(booking)}
                             </h4>
                             <p>
-                              {booking.passengerId?.email ||
-                                booking.passengerId?.whatsappNumber}
+                              {getEmployeeEmail(booking)}
                             </p>
                           </div>
                           <span
@@ -175,14 +200,14 @@ const CorporateEmployeeBookingsPage = () => {
                           <div className="route-point">
                             <span className="point-icon pickup">●</span>
                             <span className="point-text">
-                              {booking.pickupLocation}
+                              {getPickupLocation(booking)}
                             </span>
                           </div>
                           <div className="route-line"></div>
                           <div className="route-point">
                             <span className="point-icon dropoff">●</span>
                             <span className="point-text">
-                              {booking.dropoffLocation}
+                              {getDropoffLocation(booking)}
                             </span>
                           </div>
                         </div>
@@ -190,16 +215,28 @@ const CorporateEmployeeBookingsPage = () => {
                         <div className="booking-meta">
                           <div className="meta-item">
                             <span className="meta-icon">👤</span>
-                            <span>{booking.numberOfSeats} seat(s)</span>
+                            <span>{booking.numberOfSeats || 1} seat(s)</span>
                           </div>
                           <div className="meta-item">
                             <span className="meta-icon">🕐</span>
-                            <span>{formatTime(booking.travelDate)}</span>
+                            <span>{booking.startTime || booking.pickupTime || formatTime(booking.travelDate || booking.tripDate)}</span>
                           </div>
-                          {booking.vehicleModel && (
+                          {(booking.vehicleModel || booking.vehicle?.model) && (
                             <div className="meta-item">
                               <span className="meta-icon">🚌</span>
-                              <span>{booking.vehicleModel}</span>
+                              <span>{booking.vehicleModel || booking.vehicle?.model}</span>
+                            </div>
+                          )}
+                          {(booking.driverName || booking.driver?.fullName) && (
+                            <div className="meta-item">
+                              <span className="meta-icon">🧑‍✈️</span>
+                              <span>{booking.driverName || booking.driver?.fullName}</span>
+                            </div>
+                          )}
+                          {booking.tripStatus && (
+                            <div className="meta-item">
+                              <span className="meta-icon">📍</span>
+                              <span>Trip: {booking.tripStatus}</span>
                             </div>
                           )}
                         </div>

@@ -296,17 +296,44 @@ function B2BPartnerDriverDashboard() {
   }, []);
 
   const filteredBookings = bookings.filter((booking) => {
+    const status = booking.bookingStatus || booking.status;
     switch (activeBookingTab) {
       case "confirmed":
-        return booking.bookingStatus === "CONFIRMED";
+        return status === "CONFIRMED" || status === "SCHEDULED";
       case "in-progress":
-        return booking.bookingStatus === "IN_PROGRESS";
+        return status === "IN_PROGRESS";
       case "completed":
-        return booking.bookingStatus === "COMPLETED";
+        return status === "COMPLETED";
       default:
         return false;
     }
   });
+  
+  // Helper functions for Trip data format
+  const getPickupLocation = (booking) => {
+    return booking.pickupLocation || booking.fromLocation || "";
+  };
+  
+  const getDropoffLocation = (booking) => {
+    return booking.dropoffLocation || booking.toLocation || "";
+  };
+  
+  const getTravelTime = (booking) => {
+    return booking.travelTime || booking.startTime || "";
+  };
+  
+  const getPassengerCount = (booking) => {
+    return booking.passengerCount || booking.passengers?.length || 0;
+  };
+  
+  const formatTripDate = (date) => {
+    if (!date) return "";
+    return new Date(date).toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   return (
     <div className="b2b-partner-driver-dashboard">
@@ -384,18 +411,30 @@ function B2BPartnerDriverDashboard() {
                         >
                           <div className="booking-details">
                             <p>
-                              <strong>Pickup:</strong> {booking.pickupLocation}
+                              <strong>Route:</strong> {getPickupLocation(booking)} → {getDropoffLocation(booking)}
                             </p>
                             <p>
-                              <strong>Dropoff:</strong>{" "}
-                              {booking.dropoffLocation}
+                              <strong>Date:</strong>{" "}
+                              {formatTripDate(booking.tripDate)}
                             </p>
                             <p>
-                              <strong>Time:</strong> {booking.travelTime}
+                              <strong>Time:</strong> {getTravelTime(booking)}
                             </p>
                             <p>
-                              <strong>Price:</strong> ₹{booking.price}
+                              <strong>Passengers:</strong> {getPassengerCount(booking)}
                             </p>
+                            {booking.passengers && booking.passengers.length > 0 && (
+                              <div className="passenger-list">
+                                <strong>Booked Employees:</strong>
+                                <ul>
+                                  {booking.passengers.map((p, idx) => (
+                                    <li key={idx}>
+                                      {p.employeeId?.fullName || "Employee"} - Seat {p.seatNumber}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
                           </div>
                           <div className="booking-actions">
                             <button
@@ -428,17 +467,17 @@ function B2BPartnerDriverDashboard() {
                         >
                           <div className="booking-details">
                             <p>
-                              <strong>Pickup:</strong> {booking.pickupLocation}
+                              <strong>Route:</strong> {getPickupLocation(booking)} → {getDropoffLocation(booking)}
                             </p>
                             <p>
-                              <strong>Dropoff:</strong>{" "}
-                              {booking.dropoffLocation}
+                              <strong>Date:</strong>{" "}
+                              {formatTripDate(booking.tripDate)}
                             </p>
                             <p>
-                              <strong>Time:</strong> {booking.travelTime}
+                              <strong>Time:</strong> {getTravelTime(booking)}
                             </p>
                             <p>
-                              <strong>Price:</strong> ₹{booking.price}
+                              <strong>Passengers:</strong> {getPassengerCount(booking)}
                             </p>
                             <div className="status-badge in-progress">
                               In Progress
@@ -475,17 +514,17 @@ function B2BPartnerDriverDashboard() {
                         >
                           <div className="booking-details">
                             <p>
-                              <strong>Pickup:</strong> {booking.pickupLocation}
+                              <strong>Route:</strong> {getPickupLocation(booking)} → {getDropoffLocation(booking)}
                             </p>
                             <p>
-                              <strong>Dropoff:</strong>{" "}
-                              {booking.dropoffLocation}
+                              <strong>Date:</strong>{" "}
+                              {formatTripDate(booking.tripDate)}
                             </p>
                             <p>
-                              <strong>Time:</strong> {booking.travelTime}
+                              <strong>Time:</strong> {getTravelTime(booking)}
                             </p>
                             <p>
-                              <strong>Price:</strong> ₹{booking.price}
+                              <strong>Passengers:</strong> {getPassengerCount(booking)}
                             </p>
                             <div className="status-badge completed">
                               Completed

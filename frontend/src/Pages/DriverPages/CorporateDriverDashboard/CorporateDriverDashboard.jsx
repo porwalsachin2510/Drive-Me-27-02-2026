@@ -131,18 +131,22 @@ export default function CorporateDriverDashboard() {
   }, [isSharingLocation]);
 
   const fetchCorporateBookings = useCallback(async () => {
-    try {
-      const response = await api.get(`/bookings/corporate/driver/${user._id}`);
-      if (response.data.success) {
-        setBookings(response.data.bookings);
-
-        const inProgressTrips = response.data.bookings.filter(
-          (booking) => booking.bookingStatus === "IN_PROGRESS",
-        );
-
-        const confirmedTrips = response.data.bookings.filter(
-          (booking) => booking.bookingStatus === "CONFIRMED",
-        );
+  try {
+  const response = await api.get(`/bookings/corporate/driver/${user._id}`);
+  if (response.data.success) {
+  setBookings(response.data.bookings);
+  
+  // Handle both bookingStatus and status fields
+  const inProgressTrips = response.data.bookings.filter(
+  (booking) => (booking.bookingStatus || booking.status) === "IN_PROGRESS",
+  );
+  
+  const confirmedTrips = response.data.bookings.filter(
+  (booking) => {
+    const status = booking.bookingStatus || booking.status;
+    return status === "CONFIRMED" || status === "SCHEDULED";
+  },
+  );
 
         if (
           (inProgressTrips.length > 0 || confirmedTrips.length > 0) &&
@@ -298,18 +302,45 @@ export default function CorporateDriverDashboard() {
     };
   }, []);
 
-  const filteredBookings = bookings.filter((booking) => {
-    switch (activeBookingTab) {
-      case "confirmed":
-        return booking.bookingStatus === "CONFIRMED";
-      case "in-progress":
-        return booking.bookingStatus === "IN_PROGRESS";
-      case "completed":
-        return booking.bookingStatus === "COMPLETED";
-      default:
-        return false;
-    }
+const filteredBookings = bookings.filter((booking) => {
+  const status = booking.bookingStatus || booking.status;
+  switch (activeBookingTab) {
+  case "confirmed":
+  return status === "CONFIRMED" || status === "SCHEDULED";
+  case "in-progress":
+  return status === "IN_PROGRESS";
+  case "completed":
+  return status === "COMPLETED";
+  default:
+  return false;
+  }
   });
+  
+  // Helper functions for Trip data format
+  const getPickupLocation = (booking) => {
+    return booking.pickupLocation || booking.fromLocation || "";
+  };
+  
+  const getDropoffLocation = (booking) => {
+    return booking.dropoffLocation || booking.toLocation || "";
+  };
+  
+  const getTravelTime = (booking) => {
+    return booking.travelTime || booking.startTime || "";
+  };
+  
+  const getPassengerCount = (booking) => {
+    return booking.passengerCount || booking.passengers?.length || 0;
+  };
+  
+  const formatTripDate = (date) => {
+    if (!date) return "";
+    return new Date(date).toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   
   
@@ -388,30 +419,38 @@ export default function CorporateDriverDashboard() {
                         >
                           <div className="booking-details">
                             <p>
-                              <strong>Employee:</strong> {booking.employeeName}
-                            </p>
-                            <p>
                               <strong>Route:</strong>{" "}
-                              {booking.routeId?.fromLocation} →{" "}
-                              {booking.routeId?.toLocation}
-                            </p>
-                            <p>
-                              <strong>Time:</strong>{" "}
-                              {booking.routeId?.departureTime}
+                              {getPickupLocation(booking)} → {getDropoffLocation(booking)}
                             </p>
                             <p>
                               <strong>Date:</strong>{" "}
-                              {new Date(
-                                booking.travelDate,
-                              ).toLocaleDateString()}
+                              {formatTripDate(booking.tripDate || booking.travelDate)}
                             </p>
+                            <p>
+                              <strong>Time:</strong> {getTravelTime(booking)}
+                            </p>
+                            <p>
+                              <strong>Passengers:</strong> {getPassengerCount(booking)}
+                            </p>
+                            {booking.passengers && booking.passengers.length > 0 && (
+                              <div className="passenger-list">
+                                <strong>Employees:</strong>
+                                <ul>
+                                  {booking.passengers.map((p, idx) => (
+                                    <li key={idx}>
+                                      {p.employeeId?.fullName || "Employee"} - Seat {p.seatNumber}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
                           </div>
                           <div className="booking-actions">
                             <button
                               onClick={() => startTrip(booking._id)}
                               className="start-btn"
                             >
-                              🚗 Start Trip
+                              Start Trip
                             </button>
                           </div>
                         </div>
@@ -437,16 +476,15 @@ export default function CorporateDriverDashboard() {
                         >
                           <div className="booking-details">
                             <p>
-                              <strong>Employee:</strong> {booking.employeeName}
-                            </p>
-                            <p>
                               <strong>Route:</strong>{" "}
-                              {booking.routeId?.fromLocation} →{" "}
-                              {booking.routeId?.toLocation}
+                              {getPickupLocation(booking)} → {getDropoffLocation(booking)}
                             </p>
                             <p>
-                              <strong>Time:</strong>{" "}
-                              {booking.routeId?.departureTime}
+                              <strong>Date:</strong>{" "}
+                              {formatTripDate(booking.tripDate || booking.travelDate)}
+                            </p>
+                            <p>
+                              <strong>Passengers:</strong> {getPassengerCount(booking)}
                             </p>
                             <div className="status-badge in-progress">
                               In Progress
@@ -457,7 +495,7 @@ export default function CorporateDriverDashboard() {
                               onClick={() => completeTrip(booking._id)}
                               className="complete-btn"
                             >
-                              ✅ Complete Trip
+                              Complete Trip
                             </button>
                           </div>
                         </div>
@@ -483,16 +521,15 @@ export default function CorporateDriverDashboard() {
                         >
                           <div className="booking-details">
                             <p>
-                              <strong>Employee:</strong> {booking.employeeName}
-                            </p>
-                            <p>
                               <strong>Route:</strong>{" "}
-                              {booking.routeId?.fromLocation} →{" "}
-                              {booking.routeId?.toLocation}
+                              {getPickupLocation(booking)} → {getDropoffLocation(booking)}
                             </p>
                             <p>
-                              <strong>Time:</strong>{" "}
-                              {booking.routeId?.departureTime}
+                              <strong>Date:</strong>{" "}
+                              {formatTripDate(booking.tripDate || booking.travelDate)}
+                            </p>
+                            <p>
+                              <strong>Passengers:</strong> {getPassengerCount(booking)}
                             </p>
                             <div className="status-badge completed">
                               Completed
