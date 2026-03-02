@@ -127,54 +127,78 @@ io.on('connection', (socket) => {
         console.log(`Driver ${driverId} location updated: ${lat}, ${lng}`)
     })
 
-    // B2C Driver updates location (new event)
+    // B2C/B2B Driver updates location (handles both nested and flat formats)
     socket.on('driver-location-update', (locationData) => {
         console.log('🚗 Received driver-location-update:', locationData);
         
-        const { driverId, location, timestamp, bookingId } = locationData
+        const { driverId, timestamp, bookingId, tripId } = locationData
 
-        if (!location || !location.lat || !location.lng) {
+        // Support both formats:
+        // B2C sends: { driverId, location: { lat, lng }, bookingId }
+        // B2B sends: { driverId, lat, lng, tripId }
+        const lat = locationData.location?.lat || locationData.lat || locationData.latitude
+        const lng = locationData.location?.lng || locationData.lng || locationData.longitude
+
+        if (!lat || !lng) {
             console.log('❌ Invalid location data received:', locationData)
             return
         }
 
-        // Store driver location
+        // Store driver location using both driverId and userId for lookup compatibility
         activeDrivers.set(driverId, {
-            lat: location.lat,
-            lng: location.lng,
+            lat,
+            lng,
             lastUpdated: new Date(),
             socketId: socket.id
         })
 
-        console.log(`✅ Driver ${driverId} location stored: ${location.lat}, ${location.lng}`)
+        // Also store by userId if provided (B2B drivers have separate driverId/userId)
+        if (locationData.userId && locationData.userId !== driverId) {
+            activeDrivers.set(locationData.userId, {
+                lat,
+                lng,
+                lastUpdated: new Date(),
+                socketId: socket.id
+            })
+        }
+
+        console.log(`✅ Driver ${driverId} location stored: ${lat}, ${lng}`)
 
         // Broadcast to specific booking room
-        if (bookingId) {
-            const roomName = `booking-${bookingId}`
+        const effectiveBookingId = bookingId || tripId
+        if (effectiveBookingId) {
+            const roomName = `booking-${effectiveBookingId}`
             console.log(`📡 Broadcasting to room: ${roomName}`)
             
             io.to(roomName).emit('driver-location-update', {
                 driverId,
-                location: {
-                    lat: location.lat,
-                    lng: location.lng
-                },
+                location: { lat, lng },
                 timestamp: timestamp || new Date().toISOString(),
-                bookingId
+                bookingId: effectiveBookingId
             })
             
             console.log(`✅ Emitted driver-location-update to room ${roomName}`)
         }
 
-        // Also broadcast general location update
+        // Also broadcast general location update (for all listeners including commuter)
         socket.broadcast.emit('location-update', {
             driverId,
-            lat: location.lat,
-            lng: location.lng,
+            lat,
+            lng,
             timestamp: timestamp || new Date()
         })
 
-        console.log(`🌐 B2C Driver ${driverId} location updated: ${location.lat}, ${location.lng} for booking ${bookingId}`)
+        // Also emit with userId as driverId for B2B compatibility
+        if (locationData.userId && locationData.userId !== driverId) {
+            socket.broadcast.emit('location-update', {
+                driverId: locationData.userId,
+                lat,
+                lng,
+                timestamp: timestamp || new Date()
+            })
+        }
+
+        console.log(`🌐 Driver ${driverId} location updated: ${lat}, ${lng} for booking/trip ${effectiveBookingId}`)
     })
 
     // Driver accepts booking

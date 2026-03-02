@@ -5528,7 +5528,7 @@ export const getB2CStats = async (req, res) => {
             }
         ]);
 
-        // Get passenger bookings stats (alternative to reassignments)
+        // Get passenger bookings stats - uses bookingStatus field with uppercase values
         const passengerStats = await B2CPassengerBooking.aggregate([
             {
                 $match: {
@@ -5542,24 +5542,34 @@ export const getB2CStats = async (req, res) => {
                     _id: null,
                     totalPassengerBookings: { $sum: 1 },
                     pendingBookings: {
-                        $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] }
+                        $sum: { $cond: [{ $eq: ['$bookingStatus', 'PENDING'] }, 1, 0] }
                     },
                     confirmedBookings: {
-                        $sum: { $cond: [{ $eq: ['$status', 'confirmed'] }, 1, 0] }
+                        $sum: { $cond: [{ $in: ['$bookingStatus', ['CONFIRMED', 'ACCEPTED']] }, 1, 0] }
                     },
                     completedBookings: {
-                        $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] }
+                        $sum: { $cond: [{ $eq: ['$bookingStatus', 'COMPLETED'] }, 1, 0] }
+                    },
+                    inProgressBookings: {
+                        $sum: { $cond: [{ $eq: ['$bookingStatus', 'IN_PROGRESS'] }, 1, 0] }
                     }
                 }
             }
         ]);
 
-        // For tags/badges, we'll use a placeholder since the model doesn't exist yet
-        // This can be implemented when the Tag/Badge model is created
-        const tagStats = {
-            totalTags: 0,
-            activeTags: 0
-        };
+        // Get tag stats from Tag model
+        const tagStatsResult = await Tag.aggregate([
+            {
+                $group: {
+                    _id: null,
+                    totalTags: { $sum: 1 },
+                    activeTags: {
+                        $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] }
+                    }
+                }
+            }
+        ]);
+        const tagStats = tagStatsResult[0] || { totalTags: 0, activeTags: 0 };
 
         const stats = {
             providers: providerStats[0] || {

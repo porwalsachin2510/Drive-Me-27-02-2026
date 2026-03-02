@@ -91,7 +91,11 @@ function B2BPartnerDriverDashboard() {
           if (socket && socket.socket) {
             // Emit both event formats for compatibility
             socket.socket.emit("update-location", location);
-            socket.socket.emit("driver-location-update", location);
+            socket.socket.emit("driver-location-update", {
+              ...location,
+              location: { lat: location.lat, lng: location.lng },
+              bookingId: activeTrip?._id || null,
+            });
           }
 
           setLiveLocation(location);

@@ -170,7 +170,8 @@ function DriverLocationTracking() {
       // Also emit via socket for real-time tracking by passengers
       if (socket) {
         socket.emit('driver-location-update', {
-          driverId: user?._id,
+          driverId: user?.driverId || user?._id,
+          userId: user?._id,
           location: {
             lat: location.latitude,
             lng: location.longitude,

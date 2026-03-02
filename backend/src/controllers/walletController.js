@@ -96,6 +96,12 @@ export const getWalletBalance = async (req, res) => {
         
         // Get user details for currency detection
         const user = await User.findById(userId)
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            })
+        }
         
         // Find or create wallet for user
         let wallet = await Wallet.findOne({ userId })
@@ -115,9 +121,17 @@ export const getWalletBalance = async (req, res) => {
                 userCurrency = countryCurrencyMap[user.country] || "KWD"
             }
             
+            // Map role to valid wallet roles - some driver roles don't have wallets
+            const validWalletRoles = ["COMMUTER", "CORPORATE", "CORPORATE_EMPLOYEE", "B2C_PARTNER", "B2C_PARTNER_DRIVER", "B2B_PARTNER", "ADMIN"]
+            const resolvedRole = validWalletRoles.includes(userRole) 
+                ? userRole 
+                : validWalletRoles.includes(user.role) 
+                    ? user.role 
+                    : "COMMUTER" // fallback
+            
             wallet = new Wallet({
                 userId,
-                role: userRole,
+                role: resolvedRole,
                 balance: 0, // No default balance for production
                 currency: userCurrency,
                 transactions: []

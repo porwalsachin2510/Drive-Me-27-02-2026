@@ -194,6 +194,7 @@ function B2CPartnerDriverDashboard() {
         socket.socket.emit("driver-location-update", {
           bookingId: activeTrip._id,
           driverId: user?.driverId || user?._id, // Use driverId first, fallback to _id
+          userId: user?._id, // Always send userId so commuter can match by b2cPartnerId
           location: {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
@@ -222,6 +223,7 @@ function B2CPartnerDriverDashboard() {
             const locationData = {
               bookingId: activeTrip?._id,
               driverId: user?.driverId || user?._id,
+              userId: user?._id, // Always send userId so commuter can match by b2cPartnerId
               location: {
                 lat: position.coords.latitude,
                 lng: position.coords.longitude,

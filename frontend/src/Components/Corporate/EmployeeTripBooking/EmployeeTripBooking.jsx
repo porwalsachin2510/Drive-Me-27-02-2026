@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
+import { useSocket } from "../../../hooks/useSocket";
 import api from "../../../utils/api";
 import "./EmployeeTripBooking.css";
 
 function EmployeeTripBooking() {
   const user = useSelector((state) => state.auth.user);
+  const socket = useSocket();
   const [trips, setTrips] = useState([]);
   const [myBookings, setMyBookings] = useState([]);
   const [monthlyPasses, setMonthlyPasses] = useState([]);
@@ -12,6 +14,9 @@ function EmployeeTripBooking() {
   const [activeTab, setActiveTab] = useState("available");
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showTrackingModal, setShowTrackingModal] = useState(false);
+  const [trackingTrip, setTrackingTrip] = useState(null);
+  const [driverLocation, setDriverLocation] = useState(null);
   const [routeId, setRouteId] = useState(localStorage.getItem('routeId') || '');
   const [bookingData, setBookingData] = useState({
     pickupPoint: "",
@@ -58,15 +63,17 @@ function EmployeeTripBooking() {
       const response = await api.get("/corporate-employee-users/dashboard");
       const dashboardData = response.data?.data;
       
-      // Combine todayTrips and upcomingTrips for the available trips view
+      // Get todayTrips and upcomingTrips - show only SCHEDULED and IN_PROGRESS
       const todayTrips = dashboardData?.todayTrips || [];
       const upcomingTrips = dashboardData?.upcomingTrips || dashboardData?.bookings || [];
       
-      // Merge and deduplicate by _id
+      // Merge and deduplicate by _id, filter out COMPLETED/CANCELLED
       const allTrips = [...todayTrips, ...upcomingTrips];
-      const uniqueTrips = allTrips.filter((trip, index, self) => 
-        index === self.findIndex(t => t._id === trip._id)
-      );
+      const uniqueTrips = allTrips
+        .filter((trip, index, self) => 
+          index === self.findIndex(t => t._id === trip._id)
+        )
+        .filter(trip => ['SCHEDULED', 'IN_PROGRESS'].includes(trip.status));
       
       // Also try to get route stop points for pickup selection
       try {
@@ -254,6 +261,51 @@ function EmployeeTripBooking() {
     }
   };
 
+  // Socket listener for driver location updates
+  useEffect(() => {
+    if (!socket?.socket) return;
+
+    const handleLocationUpdate = (data) => {
+      if (trackingTrip && data.driverId) {
+        setDriverLocation({
+          lat: data.location?.lat || data.lat,
+          lng: data.location?.lng || data.lng,
+          timestamp: data.timestamp
+        });
+      }
+    };
+
+    socket.socket.on("driver-location-update", handleLocationUpdate);
+    socket.socket.on("location-update", handleLocationUpdate);
+
+    return () => {
+      socket.socket.off("driver-location-update", handleLocationUpdate);
+      socket.socket.off("location-update", handleLocationUpdate);
+    };
+  }, [socket, trackingTrip]);
+
+  // Track Driver handler
+  const handleTrackDriver = useCallback((trip) => {
+    setTrackingTrip(trip);
+    setDriverLocation(null);
+    setShowTrackingModal(true);
+
+    // Join booking room for this trip to receive location updates
+    if (socket?.socket && trip._id) {
+      socket.socket.emit("join_booking_room", trip._id);
+    }
+  }, [socket]);
+
+  // Stop tracking
+  const handleStopTracking = useCallback(() => {
+    if (socket?.socket && trackingTrip?._id) {
+      socket.socket.emit("leave_booking_room", trackingTrip._id);
+    }
+    setShowTrackingModal(false);
+    setTrackingTrip(null);
+    setDriverLocation(null);
+  }, [socket, trackingTrip]);
+
   return (
     <div className="employee-trip-booking">
       <div className="booking-header">
@@ -344,13 +396,33 @@ function EmployeeTripBooking() {
                         </div>
                       </div>
 
-                      <button 
-                        className="book-btn"
-                        onClick={() => handleBookTrip(trip)}
-                        disabled={trip.availableSeats === 0}
-                      >
-                        {trip.availableSeats === 0 ? "Full" : "Book Seat"}
-                      </button>
+                      <div className="trip-actions">
+                        <button 
+                          className="book-btn"
+                          onClick={() => handleBookTrip(trip)}
+                          disabled={trip.availableSeats === 0}
+                        >
+                          {trip.availableSeats === 0 ? "Full" : "Book Seat"}
+                        </button>
+                        {trip.status === "IN_PROGRESS" && (
+                          <button 
+                            className="track-btn"
+                            onClick={() => handleTrackDriver(trip)}
+                            style={{
+                              background: "#3b82f6",
+                              color: "white",
+                              border: "none",
+                              padding: "8px 16px",
+                              borderRadius: "6px",
+                              cursor: "pointer",
+                              fontSize: "14px",
+                              fontWeight: "600"
+                            }}
+                          >
+                            Track Driver
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -394,6 +466,24 @@ function EmployeeTripBooking() {
                             onClick={() => handleCancelBooking(booking._id)}
                           >
                             Cancel Booking
+                          </button>
+                        )}
+                        {booking.status === "IN_PROGRESS" && (
+                          <button 
+                            className="track-btn"
+                            onClick={() => handleTrackDriver(booking)}
+                            style={{
+                              background: "#3b82f6",
+                              color: "white",
+                              border: "none",
+                              padding: "8px 16px",
+                              borderRadius: "6px",
+                              cursor: "pointer",
+                              fontSize: "14px",
+                              fontWeight: "600"
+                            }}
+                          >
+                            Track Driver
                           </button>
                         )}
                       </div>
@@ -526,6 +616,98 @@ function EmployeeTripBooking() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Driver Tracking Modal */}
+      {showTrackingModal && trackingTrip && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: "800px", width: "95%" }}>
+            <div className="modal-header">
+              <h3>Track Driver - {trackingTrip.fromLocation} → {trackingTrip.toLocation}</h3>
+              <button 
+                className="close-btn"
+                onClick={handleStopTracking}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ padding: "16px" }}>
+              <div style={{ marginBottom: "16px" }}>
+                <p><strong>Driver:</strong> {trackingTrip.driverName || 'Assigned Driver'}</p>
+                <p><strong>Vehicle:</strong> {trackingTrip.vehicleName || trackingTrip.vehicleNumber || 'N/A'}</p>
+                <p><strong>Status:</strong>{' '}
+                  <span style={{ 
+                    color: driverLocation ? "#10b981" : "#f59e0b",
+                    fontWeight: "bold"
+                  }}>
+                    {driverLocation ? "Online - Sharing Location" : "Waiting for driver location..."}
+                  </span>
+                </p>
+              </div>
+
+              <div style={{ 
+                height: "400px", 
+                borderRadius: "12px", 
+                overflow: "hidden", 
+                border: "2px solid #e0e0e0",
+                position: "relative",
+                background: "#f8f9fa"
+              }}>
+                {driverLocation ? (
+                  <>
+                    <iframe
+                      title="Live Driver Tracking Map"
+                      width="100%"
+                      height="100%"
+                      frameBorder="0"
+                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${driverLocation.lng - 0.005},${driverLocation.lat - 0.005},${driverLocation.lng + 0.005},${driverLocation.lat + 0.005}&layer=mapnik&mlat=${driverLocation.lat}&mlon=${driverLocation.lng}&zoom=16`}
+                      style={{ border: 0 }}
+                      allowFullScreen
+                    />
+                    <div style={{
+                      position: "absolute",
+                      top: "10px",
+                      right: "10px",
+                      backgroundColor: "rgba(40, 167, 69, 0.9)",
+                      color: "white",
+                      padding: "8px 12px",
+                      borderRadius: "20px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      zIndex: 1000
+                    }}>
+                      LIVE TRACKING
+                    </div>
+                  </>
+                ) : (
+                  <div style={{
+                    height: "100%",
+                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexDirection: "column",
+                    color: "white"
+                  }}>
+                    <div style={{ fontSize: "48px", marginBottom: "16px" }}>
+                      {'🗺️'}
+                    </div>
+                    <h3 style={{ margin: "0 0 8px 0", fontSize: "18px" }}>
+                      Waiting for Driver Location...
+                    </h3>
+                    <p style={{ margin: 0, fontSize: "14px", opacity: 0.9, textAlign: "center", maxWidth: "300px" }}>
+                      Your driver will appear here once they start sharing their location
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

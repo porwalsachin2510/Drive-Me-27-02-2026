@@ -1869,14 +1869,35 @@ export const getB2B_PartnerDriverBookings = async (req, res) => {
             query.status = status
         }
 
-        // Get all trips assigned to this driver that have passengers
-        const trips = await Trip.find(query)
+        // Only show today's and future trips (not historical completed ones)
+        const todayStart = new Date()
+        todayStart.setHours(0, 0, 0, 0)
+        
+        // Include today + next 7 days, and any IN_PROGRESS trips regardless of date
+        const nextWeek = new Date(todayStart.getTime() + 7 * 24 * 60 * 60 * 1000)
+        query.$or = [
+            ...(query.$or || []),
+        ]
+        // Build the final query with date filter
+        const dateFilter = {
+            $or: [
+                { tripDate: { $gte: todayStart, $lte: nextWeek } },
+                { status: 'IN_PROGRESS' } // Always show in-progress trips
+            ]
+        }
+        const finalQuery = { $and: [driverIdFilter, dateFilter] }
+        if (status) {
+            finalQuery.$and.push({ status })
+        }
+
+        // Get trips assigned to this driver for today and upcoming
+        const trips = await Trip.find(finalQuery)
             .populate("routeId")
             .populate("vehicleId")
             .populate("corporateId", "companyName fullName")
             .populate("b2bPartnerId", "companyName fullName")
             .populate("passengers.employeeId", "fullName email whatsappNumber")
-            .sort({ tripDate: -1 })
+            .sort({ tripDate: 1 })
 
         console.log("[v0] Found trips:", trips.length)
 
