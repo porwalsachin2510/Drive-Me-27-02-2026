@@ -560,21 +560,21 @@ const filteredBookings = bookings.filter((booking) => {
         )}
 
         {activeMainTab === "notifications" && (
-          <div className="notifications-section">
+          <div className="corp-driver-notifications-section">
             <h3>Notifications</h3>
-            <div className="notification-list">
+            <div className="corp-driver-notification-list">
               {notifications.length > 0 ? (
                 notifications.map((notification) => (
-                  <div key={notification._id} className={`notification-item ${!notification.isRead ? 'unread' : ''}`}>
+                  <div key={notification._id} className={`corp-driver-notification-item ${!notification.isRead ? 'unread' : ''}`}>
                     <h4>{notification.title}</h4>
                     <p>{notification.message}</p>
-                    <div className="time">
+                    <div className="corp-driver-time">
                       {new Date(notification.createdAt).toLocaleString()}
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="no-notifications">
+                <div className="corp-driver-no-notifications">
                   <p>No notifications available</p>
                 </div>
               )}
@@ -583,9 +583,9 @@ const filteredBookings = bookings.filter((booking) => {
         )}
 
         {activeMainTab === "location" && (
-          <div className="location-section">
+          <div className="corp-driver-location-section">
             <h3>Live Location Tracking</h3>
-            <div className="location-info">
+            <div className="corp-driver-location-info">
               <p>
                 <strong>Status:</strong>{" "}
                 {isSharingLocation ? (
@@ -620,11 +620,11 @@ const filteredBookings = bookings.filter((booking) => {
               )}
             </div>
 
-            <div className="location-map">
+            <div className="corp-driver-location-map">
               {liveLocation ? (
                 <iframe
                   src={`https://www.openstreetmap.org/export/embed.html?bbox=${liveLocation.lng - 0.01},${liveLocation.lat - 0.01},${liveLocation.lng + 0.01},${liveLocation.lat + 0.01}&layer=mapnik&marker=${liveLocation.lat},${liveLocation.lng}`}
-                  className="live-map"
+                  className="corp-driver-live-map"
                   width="100%"
                   height="400"
                   frameBorder="0"
@@ -632,7 +632,7 @@ const filteredBookings = bookings.filter((booking) => {
                   title="Driver Live Location"
                 />
               ) : (
-                <div className="no-location">
+                <div className="corp-driver-no-location">
                   <p>No location data available</p>
                 </div>
               )}

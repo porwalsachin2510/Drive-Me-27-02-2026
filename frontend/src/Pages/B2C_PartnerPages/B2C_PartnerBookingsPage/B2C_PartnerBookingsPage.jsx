@@ -205,8 +205,8 @@ const B2C_PartnerBookingsPage = () => {
   if (loading) {
     console.log("[B2C_PartnerBookingsPage] Loading state, showing loader...");
     return (
-      <div className="b2c-partner-bookings">
-        <div className="loading">Loading bookings...</div>
+      <div className="B2C_Partner-bookings-page-container">
+        <div className="B2C_Partner-bookings-page-loading">Loading bookings...</div>
       </div>
     );
   }
@@ -218,19 +218,19 @@ const B2C_PartnerBookingsPage = () => {
   });
 
   return (
-    <div className="b2c-partner-bookings">
-      <div className="bookings-header">
+    <div className="B2C_Partner-bookings-page-container">
+      <div className="B2C_Partner-bookings-page-header">
         <h2>Booking Management</h2>
-        <div className="wallet-info">
-          <span className="wallet-balance">
+        <div className="B2C_Partner-bookings-page-wallet-info">
+          <span className="B2C_Partner-bookings-page-wallet-balance">
             Wallet Balance: ₹{walletBalance}
           </span>
         </div>
-        <div className="filter-controls">
+        <div className="B2C_Partner-bookings-page-filter-controls">
           <select 
             value={filterStatus} 
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="status-filter"
+            className="B2C_Partner-bookings-page-status-filter"
           >
             <option value="CONFIRMED">Confirmed</option>
             <option value="ACCEPTED">Accepted</option>
@@ -241,103 +241,103 @@ const B2C_PartnerBookingsPage = () => {
         </div>
       </div>
 
-      <div className="bookings-stats">
-        <div className="stat-card">
-          <span className="stat-number">{Array.isArray(partnerBookings) ? partnerBookings.length : 0}</span>
-          <span className="stat-label">Total Bookings</span>
+      <div className="B2C_Partner-bookings-page-stats">
+        <div className="B2C_Partner-bookings-page-stat-card">
+          <span className="B2C_Partner-bookings-page-stat-number">{Array.isArray(partnerBookings) ? partnerBookings.length : 0}</span>
+          <span className="B2C_Partner-bookings-page-stat-label">Total Bookings</span>
         </div>
-        <div className="stat-card">
-          <span className="stat-number">
+        <div className="B2C_Partner-bookings-page-stat-card">
+          <span className="B2C_Partner-bookings-page-stat-number">
             {Array.isArray(partnerBookings) ? partnerBookings.filter(b => b.bookingStatus === "CONFIRMED").length : 0}
           </span>
-          <span className="stat-label">Confirmed</span>
+          <span className="B2C_Partner-bookings-page-stat-label">Confirmed</span>
         </div>
-        <div className="stat-card">
-          <span className="stat-number">
+        <div className="B2C_Partner-bookings-page-stat-card">
+          <span className="B2C_Partner-bookings-page-stat-number">
             {Array.isArray(partnerBookings) ? partnerBookings.filter(b => b.bookingStatus === "ACCEPTED").length : 0}
           </span>
-          <span className="stat-label">Accepted</span>
+          <span className="B2C_Partner-bookings-page-stat-label">Accepted</span>
         </div>
-        <div className="stat-card">
-          <span className="stat-number">
+        <div className="B2C_Partner-bookings-page-stat-card">
+          <span className="B2C_Partner-bookings-page-stat-number">
             {Array.isArray(partnerBookings) ? partnerBookings.filter(b => b.bookingStatus === "COMPLETED").length : 0}
           </span>
-          <span className="stat-label">Completed</span>
+          <span className="B2C_Partner-bookings-page-stat-label">Completed</span>
         </div>
       </div>
 
-      <div className="bookings-list">
+      <div className="B2C_Partner-bookings-page-list">
         {!Array.isArray(partnerBookings) || partnerBookings.length === 0 ? (
-          <div className="no-bookings">
-            <div className="no-bookings-icon">📋</div>
+          <div className="B2C_Partner-bookings-page-no-bookings">
+            <div className="B2C_Partner-bookings-page-no-bookings-icon">📋</div>
             <h3>No bookings found</h3>
             <p>No bookings found for the selected status</p>
           </div>
         ) : (
           Array.isArray(partnerBookings) && partnerBookings.map((booking) => (
-            <div key={booking._id} className="booking-card">
-              <div className="booking-header">
-                <div className="booking-info">
+            <div key={booking._id} className="B2C_Partner-bookings-page-booking-card">
+              <div className="B2C_Partner-bookings-page-booking-header">
+                <div className="B2C_Partner-bookings-page-booking-info">
                   <h4>Booking #{booking._id.slice(-8)}</h4>
                   <span 
-                    className="status-badge"
+                    className="B2C_Partner-bookings-page-status-badge"
                     style={{ backgroundColor: getStatusColor(booking.bookingStatus) }}
                   >
                     {booking.bookingStatus}
                   </span>
                   <span 
-                    className="booking-type-badge"
+                    className="B2C_Partner-bookings-page-booking-type-badge"
                     style={{ backgroundColor: getBookingTypeColor(booking.isSelfDriver) }}
                   >
                     {getBookingTypeText(booking.isSelfDriver)}
                   </span>
                 </div>
-                <div className="booking-date">
+                <div className="B2C_Partner-bookings-page-booking-date">
                   {formatDate(booking.createdAt)}
                 </div>
               </div>
 
-              <div className="booking-details">
-                <div className="route-info">
-                  <div className="route-point">
+              <div className="B2C_Partner-bookings-page-booking-details">
+                <div className="B2C_Partner-bookings-page-route-info">
+                  <div className="B2C_Partner-bookings-page-route-point">
                     <strong>From</strong> {booking.pickupLocation || 'N/A'}
                   </div>
-                  <div className="route-arrow">&rarr;</div>
-                  <div className="route-point">
+                  <div className="B2C_Partner-bookings-page-route-arrow">&rarr;</div>
+                  <div className="B2C_Partner-bookings-page-route-point">
                     <strong>To</strong> {booking.dropoffLocation || 'N/A'}
                   </div>
                 </div>
 
-                <div className="driver-info">
+                <div className="B2C_Partner-bookings-page-driver-info">
                   <p><strong>Driver</strong> {booking.driverName || "Not Assigned"}</p>
                   <p><strong>Phone</strong> {booking.driverPhoneNumber || "N/A"}</p>
                   <p><strong>Passenger</strong> {booking.passengerId?.name || "Passenger"}</p>
                 </div>
 
-                <div className="booking-info-details">
+                <div className="B2C_Partner-bookings-page-booking-info-details">
                   <p><strong>Seats</strong> {booking.numberOfSeats || 1}</p>
                   <p><strong>Amount</strong> {(booking.paymentAmount || 0).toLocaleString()} KWD</p>
                   <p><strong>Payment</strong> {booking.paymentStatus || 'N/A'} / {booking.paymentMethod || 'N/A'}</p>
                   <p><strong>Type</strong> {booking.isMonthlyPass ? "Monthly Pass" : "Single Trip"}</p>
                 </div>
 
-                <div className="commission-info">
+                <div className="B2C_Partner-bookings-page-commission-info">
                   <p><strong>Admin Commission</strong> {(booking.adminCommissionAmount || 0).toLocaleString()} KWD</p>
                   <p><strong>Driver Earnings</strong> {(booking.driverEarnings || 0).toLocaleString()} KWD</p>
                 </div>
               </div>
 
-              <div className="booking-actions">
+              <div className="B2C_Partner-bookings-page-booking-actions">
                 {booking.bookingStatus === "CONFIRMED" && (
                   <>
                     <button
-                      className="accept-btn"
+                      className="B2C_Partner-bookings-page-accept-btn"
                       onClick={() => handleAccept(booking)}
                     >
                       Accept Booking
                     </button>
                     <button
-                      className="reject-btn"
+                      className="B2C_Partner-bookings-page-reject-btn"
                       onClick={() => handleRejectClick(booking)}
                     >
                       Reject
@@ -351,7 +351,7 @@ const B2C_PartnerBookingsPage = () => {
                     {(auth.user?.role === "B2C_PARTNER" && booking.isSelfDriver === true) || 
                      (auth.user?.role === "B2C_PARTNER_DRIVER" && booking.assignedDriverId === auth.user?._id) ? (
                       <button
-                        className="start-trip-btn"
+                        className="B2C_Partner-bookings-page-start-trip-btn"
                         onClick={() => handleStartTrip(booking._id)}
                       >
                         Start Trip
@@ -362,7 +362,7 @@ const B2C_PartnerBookingsPage = () => {
                     {(auth.user?.role === "B2C_PARTNER" && booking.isSelfDriver === true) || 
                      (auth.user?.role === "B2C_PARTNER_DRIVER" && booking.assignedDriverId === auth.user?._id) ? (
                       <button
-                        className="complete-btn"
+                        className="B2C_Partner-bookings-page-complete-btn"
                         onClick={() => handleComplete(booking._id)}
                       >
                         Mark Complete
@@ -377,7 +377,7 @@ const B2C_PartnerBookingsPage = () => {
                     {(auth.user?.role === "B2C_PARTNER" && booking.isSelfDriver === true) || 
                      (auth.user?.role === "B2C_PARTNER_DRIVER" && booking.assignedDriverId === auth.user?._id) ? (
                       <button
-                        className="complete-btn"
+                        className="B2C_Partner-bookings-page-complete-btn"
                         onClick={() => handleComplete(booking._id)}
                       >
                         Complete Trip
@@ -422,35 +422,35 @@ const B2C_PartnerBookingsPage = () => {
 
       {/* Wallet Warning Modal */}
       {showWalletWarning && selectedBooking && (
-        <div className="modal-overlay">
-          <div className="wallet-warning-modal">
-            <div className="modal-header">
-              <h3>⚠️ Insufficient Wallet Balance</h3>
+        <div className="B2C_Partner-bookings-page-modal-overlay">
+          <div className="B2C_Partner-bookings-page-wallet-warning-modal">
+            <div className="B2C_Partner-bookings-page-modal-header">
+              <h3>Insufficient Wallet Balance</h3>
               <button 
-                className="close-btn"
+                className="B2C_Partner-bookings-page-close-btn"
                 onClick={() => setShowWalletWarning(false)}
               >
                 ×
               </button>
             </div>
-            <div className="modal-body">
+            <div className="B2C_Partner-bookings-page-modal-body">
               <p>You cannot accept this CASH booking because your wallet balance is insufficient.</p>
-              <div className="balance-info">
+              <div className="B2C_Partner-bookings-page-balance-info">
                 <p><strong>Required Amount:</strong> ₹{selectedBooking?.adminCommissionAmount || 0}</p>
                 <p><strong>Current Balance:</strong> ₹{walletBalance}</p>
                 <p><strong>Shortfall:</strong> ₹{Math.max(0, (selectedBooking?.adminCommissionAmount || 0) - walletBalance)}</p>
               </div>
               <p>Please add funds to your wallet to accept this booking.</p>
             </div>
-            <div className="modal-actions">
+            <div className="B2C_Partner-bookings-page-modal-actions">
               <button
-                className="cancel-btn"
+                className="B2C_Partner-bookings-page-cancel-btn"
                 onClick={() => setShowWalletWarning(false)}
               >
                 Close
               </button>
               <button
-                className="add-funds-btn"
+                className="B2C_Partner-bookings-page-add-funds-btn"
                 onClick={() => {
                   setShowWalletWarning(false);
                   setShowRechargeModal(true);
@@ -465,12 +465,12 @@ const B2C_PartnerBookingsPage = () => {
 
       {/* Reject Modal */}
       {showRejectModal && selectedBooking && (
-        <div className="modal-overlay">
-          <div className="reject-modal">
-            <div className="modal-header">
+        <div className="B2C_Partner-bookings-page-modal-overlay">
+          <div className="B2C_Partner-bookings-page-reject-modal">
+            <div className="B2C_Partner-bookings-page-modal-header">
               <h3>Reject Booking</h3>
               <button 
-                className="close-btn"
+                className="B2C_Partner-bookings-page-close-btn"
                 onClick={() => {
                   setShowRejectModal(false);
                   setSelectedBooking(null);
@@ -480,9 +480,9 @@ const B2C_PartnerBookingsPage = () => {
                 ×
               </button>
             </div>
-            <div className="modal-body">
+            <div className="B2C_Partner-bookings-page-modal-body">
               <p>Are you sure you want to reject this booking?</p>
-              <div className="form-group">
+              <div className="B2C_Partner-bookings-page-form-group">
                 <label>Reason for rejection:</label>
                 <textarea
                   value={rejectionReason}
@@ -492,9 +492,9 @@ const B2C_PartnerBookingsPage = () => {
                 />
               </div>
             </div>
-            <div className="modal-actions">
+            <div className="B2C_Partner-bookings-page-modal-actions">
               <button
-                className="cancel-btn"
+                className="B2C_Partner-bookings-page-cancel-btn"
                 onClick={() => {
                   setShowRejectModal(false);
                   setSelectedBooking(null);
@@ -504,7 +504,7 @@ const B2C_PartnerBookingsPage = () => {
                 Cancel
               </button>
               <button
-                className="confirm-reject-btn"
+                className="B2C_Partner-bookings-page-confirm-reject-btn"
                 onClick={handleRejectSubmit}
                 disabled={!rejectionReason.trim()}
               >
