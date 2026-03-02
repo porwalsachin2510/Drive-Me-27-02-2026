@@ -411,12 +411,43 @@ function B2CPartnerDriverDashboard() {
     );
   }
 
+  // Compute dynamic stats from driverBookings
+  const driverStats = useMemo(() => {
+    const bookingsArr = Array.isArray(driverBookings) ? driverBookings : [];
+    const totalTrips = bookingsArr.length;
+    const completedTrips = bookingsArr.filter(b => b.bookingStatus === "COMPLETED").length;
+    const acceptedTrips = bookingsArr.filter(b => ["ACCEPTED", "IN_PROGRESS", "COMPLETED"].includes(b.bookingStatus)).length;
+    const rejectedTrips = bookingsArr.filter(b => b.bookingStatus === "REJECTED").length;
+    const totalDecisions = acceptedTrips + rejectedTrips;
+    const acceptanceRate = totalDecisions > 0 ? Math.round((acceptedTrips / totalDecisions) * 100) : 100;
+    // Rating: compute from completed trips that have a rating, else show N/A
+    const ratedTrips = bookingsArr.filter(b => b.rating && b.rating > 0);
+    const avgRating = ratedTrips.length > 0 
+      ? (ratedTrips.reduce((sum, b) => sum + b.rating, 0) / ratedTrips.length).toFixed(1)
+      : "N/A";
+    return { totalTrips, completedTrips, acceptanceRate, avgRating };
+  }, [driverBookings]);
+
   return (
     <div className="b2c-partner-driver-dashboard">
       <div className="dashboard-header">
-        <h1>B2C Partner Driver Dashboard</h1>
-        <div className="driver-info">
-          <span>Welcome, {user?.fullName}</span>
+        <div className="dashboard-header-left">
+          <h1>Driver Dashboard</h1>
+          <p className="driver-welcome">Welcome back, {user?.fullName || user?.name || 'Driver'}</p>
+        </div>
+        <div className="dashboard-header-right">
+          <div className="driver-stat-box">
+            <span className="driver-stat-label">RATING</span>
+            <span className="driver-stat-value">{driverStats.avgRating}{driverStats.avgRating !== "N/A" ? " *" : ""}</span>
+          </div>
+          <div className="driver-stat-box">
+            <span className="driver-stat-label">TRIPS</span>
+            <span className="driver-stat-value">{driverStats.totalTrips.toLocaleString()}</span>
+          </div>
+          <div className="driver-stat-box">
+            <span className="driver-stat-label">ACCEPTANCE</span>
+            <span className="driver-stat-value">{driverStats.acceptanceRate}%</span>
+          </div>
           <div
             className={`location-status ${isSharingLocation ? "active" : ""}`}
           >

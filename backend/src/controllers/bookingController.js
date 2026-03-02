@@ -14,6 +14,7 @@ import tapPayments from "../Config/tapPayments.js"
 import { calculateCommission, calculateDriverCommission } from "../Services/HelperUtilities.js"
 import { sendRealTimeNotification, sendBookingUpdate } from "../Services/socketService.js"
 import { createNotification } from "./notificationController.js"
+import { sendAdminNotification } from "../Services/notificationService.js"
 
 // Check if route is available for booking
 export const checkRouteAvailability = async (req, res) => {
@@ -714,8 +715,8 @@ export const acceptB2CBooking = async (req, res) => {
         console.log("[acceptB2CBooking] Partner accepting booking:", { partnerId, bookingId })
 
         const booking = await B2CPassengerBooking.findById(bookingId)
-            .populate('passengerId', 'name email phone')
-            .populate('b2cPartnerId', 'name businessName phone')
+            .populate('passengerId', 'name email phone fullName')
+            .populate('b2cPartnerId', 'name fullName companyName phone')
 
         if (!booking) {
             return res.status(404).json({
@@ -785,11 +786,12 @@ export const acceptB2CBooking = async (req, res) => {
         booking.acceptedAt = new Date()
         await booking.save()
 
-        // Send notification to passenger
+        // Send notification to passenger - use companyName or fullName (not businessName which doesn't exist)
+        const partnerDisplayName = booking.b2cPartnerId.companyName || booking.b2cPartnerId.fullName || booking.b2cPartnerId.name || 'the partner';
         const bookingAcceptedNotification = await createNotification({
             userId: booking.passengerId._id,
             title: "Booking Accepted",
-            message: `Your B2C booking from ${booking.pickupLocation} to ${booking.dropoffLocation} has been accepted by ${booking.b2cPartnerId.businessName || booking.b2cPartnerId.name}.`,
+            message: `Your B2C booking from ${booking.pickupLocation || 'pickup'} to ${booking.dropoffLocation || 'destination'} has been accepted by ${partnerDisplayName}.`,
             type: "BOOKING_ACCEPTED",
             bookingId: booking._id,
         })
@@ -799,9 +801,9 @@ export const acceptB2CBooking = async (req, res) => {
             type: "BOOKING_ACCEPTED",
             data: {
                 bookingId: booking._id,
-                message: `Your booking has been accepted by the partner.`,
+                message: `Your booking has been accepted by ${partnerDisplayName}.`,
                 partnerInfo: {
-                    name: booking.b2cPartnerId.businessName || booking.b2cPartnerId.name,
+                    name: partnerDisplayName,
                     phone: booking.b2cPartnerId.phone,
                 },
                 booking: {
@@ -814,6 +816,18 @@ export const acceptB2CBooking = async (req, res) => {
                 }
             }
         })
+
+        // Notify admins about booking acceptance
+        try {
+            await sendAdminNotification(
+                "Booking Accepted",
+                `B2C booking #${booking._id.toString().slice(-8)} from ${booking.pickupLocation || 'pickup'} to ${booking.dropoffLocation || 'destination'} accepted by ${partnerDisplayName}`,
+                "BOOKING_ACCEPTED",
+                { bookingId: booking._id }
+            );
+        } catch (adminNotifErr) {
+            console.error("Admin notification error:", adminNotifErr);
+        }
 
         console.log("[acceptB2CBooking] Booking accepted successfully:", {
             bookingId: booking._id,

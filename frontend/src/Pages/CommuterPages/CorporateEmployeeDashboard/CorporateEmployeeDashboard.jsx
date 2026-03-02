@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { logout } from "../../../Redux/slices/authSlice";
 import Navbar from "../../../Components/Navbar/Navbar";
 import Footer from "../../../Components/Footer/Footer";
 import api from "../../../utils/api";
@@ -28,8 +30,10 @@ import {
 
 export default function CorporateEmployeeDashboard() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const token = useSelector((state) => state.auth.token);
   const userId = useSelector((state) => state.auth.userId);
+  const user = useSelector((state) => state.auth.user);
 
   // Redux selectors
   const upcomingTripsRedux = useSelector(selectEmployeeTrips);
@@ -55,6 +59,25 @@ export default function CorporateEmployeeDashboard() {
   const [error, setError] = useState(null);
 
   
+
+  const handleLogout = async () => {
+    try {
+      const storedToken = localStorage.getItem("token");
+      if (storedToken) {
+        await api.post("/auth/logout", {}, {
+          headers: { Authorization: `Bearer ${storedToken}` },
+          withCredentials: true,
+        });
+      }
+    } catch (err) {
+      console.error("Logout error:", err);
+    } finally {
+      dispatch(logout());
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      navigate("/login");
+    }
+  };
 
   const fetchEmployeeDashboardData = async () => {
     try {
@@ -169,8 +192,15 @@ export default function CorporateEmployeeDashboard() {
 
       <div className="employee-dashboard-container">
         <div className="employee-dashboard-header">
-          <h1>My Daily Commute</h1>
-          <p>Stay updated with your assigned bus and bookings</p>
+          <div className="employee-header-left">
+            <h1>Welcome, {user?.fullName || 'Employee'}</h1>
+            <p>Corporate Employee Transportation Dashboard</p>
+          </div>
+          <div className="employee-header-right">
+            <button className="employee-logout-btn" onClick={handleLogout}>
+              Logout
+            </button>
+          </div>
         </div>
 
         {error && (

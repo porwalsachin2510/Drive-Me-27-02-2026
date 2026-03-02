@@ -4,7 +4,9 @@ import Contract from "../models/Contract.js";
 import Vehicle from "../models/Vehicle.js";
 import User from "../models/User.js";
 import MonthlyPass from "../models/MonthlyPass.js";
+import CorporateEmployee from "../models/CorporateEmployee.js";
 import { io } from "../index.js";
+import { createNotification } from "../Services/notificationService.js";
 
 // @desc    Create recurring trips from route
 // @route   POST /api/trips/create-from-route
@@ -728,14 +730,36 @@ export const startTrip = async (req, res) => {
 
         await trip.save();
 
-        // Notify all passengers
-        trip.passengers.forEach(passenger => {
-            io.to(`notifications-${passenger.employeeId}`).emit('trip-started', {
-                tripId: trip._id,
-                startTime: new Date(),
-                driverLocation: trip.driverLocation
-            });
-        });
+        // Notify all passengers via socket AND persistent notification
+        for (const passenger of trip.passengers) {
+            if (passenger.employeeId) {
+                // Socket notification
+                io.to(`notifications-${passenger.employeeId}`).emit('trip-started', {
+                    tripId: trip._id,
+                    startTime: new Date(),
+                    driverLocation: trip.driverLocation
+                });
+
+                // Find the user account for this employee to create persistent notification
+                try {
+                    const employee = await CorporateEmployee.findById(passenger.employeeId).select('userId');
+                    const notifUserId = employee?.userId || passenger.employeeId;
+                    await createNotification({
+                        userId: notifUserId,
+                        type: "TRIP_STARTED",
+                        title: "Trip Started",
+                        message: `Your trip from ${trip.fromLocation || 'pickup'} to ${trip.toLocation || 'destination'} has started`,
+                        data: {
+                            tripId: trip._id,
+                            fromLocation: trip.fromLocation,
+                            toLocation: trip.toLocation
+                        }
+                    });
+                } catch (notifErr) {
+                    console.error("Error creating trip start notification:", notifErr);
+                }
+            }
+        }
 
         res.json({
             success: true,
@@ -795,13 +819,33 @@ export const completeTrip = async (req, res) => {
 
         await trip.save();
 
-        // Notify all passengers
-        trip.passengers.forEach(passenger => {
-            io.to(`notifications-${passenger.employeeId}`).emit('trip-completed', {
-                tripId: trip._id,
-                completionTime: new Date()
-            });
-        });
+        // Notify all passengers via socket AND persistent notification
+        for (const passenger of trip.passengers) {
+            if (passenger.employeeId) {
+                io.to(`notifications-${passenger.employeeId}`).emit('trip-completed', {
+                    tripId: trip._id,
+                    completionTime: new Date()
+                });
+
+                try {
+                    const employee = await CorporateEmployee.findById(passenger.employeeId).select('userId');
+                    const notifUserId = employee?.userId || passenger.employeeId;
+                    await createNotification({
+                        userId: notifUserId,
+                        type: "TRIP_COMPLETED",
+                        title: "Trip Completed",
+                        message: `Your trip from ${trip.fromLocation || 'pickup'} to ${trip.toLocation || 'destination'} has been completed`,
+                        data: {
+                            tripId: trip._id,
+                            fromLocation: trip.fromLocation,
+                            toLocation: trip.toLocation
+                        }
+                    });
+                } catch (notifErr) {
+                    console.error("Error creating trip complete notification:", notifErr);
+                }
+            }
+        }
 
         res.json({
             success: true,

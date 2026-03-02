@@ -716,6 +716,25 @@ export const sendContractExpiryWarning = async (contractId) => {
     }
 };
 
+// Send notification to all Admin users
+export const sendAdminNotification = async (title, message, type = "ADMIN_ALERT", data = {}) => {
+    try {
+        const admins = await User.find({ role: "ADMIN" }).select('_id');
+        for (const admin of admins) {
+            await createNotification({
+                userId: admin._id,
+                type,
+                title,
+                message,
+                data
+            });
+        }
+        console.log(`[v0] Admin notification sent to ${admins.length} admins: ${title}`);
+    } catch (error) {
+        console.error("[v0] Error sending admin notification:", error);
+    }
+};
+
 // Helper function to calculate distance between two coordinates (Haversine formula)
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371; // Earth's radius in km

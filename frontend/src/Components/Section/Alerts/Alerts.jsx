@@ -32,8 +32,10 @@ export default function Alerts() {
         }
       });
       
-      const newNotifications = response.data.notifications || [];
-      const totalNotifications = response.data.total || 0;
+      // Backend returns { success, data: { notifications, pagination } }
+      const responseData = response.data?.data || response.data;
+      const newNotifications = responseData?.notifications || response.data?.notifications || [];
+      const totalNotifications = responseData?.pagination?.total || response.data?.total || 0;
       
       if (reset) {
         setNotifications(newNotifications);

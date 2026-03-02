@@ -15,20 +15,50 @@
 }
 
 .employee-dashboard-header {
-  text-align: center;
-  margin-bottom: 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  background: white;
+  border-radius: 12px;
+  padding: 24px 32px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
-.employee-dashboard-header h1 {
-  font-size: 2.5rem;
+.employee-header-left h1 {
+  font-size: 1.8rem;
   color: #2c3e50;
-  margin-bottom: 10px;
+  margin: 0 0 4px 0;
   font-weight: 700;
 }
 
-.employee-dashboard-header p {
-  font-size: 1.1rem;
+.employee-header-left p {
+  font-size: 0.95rem;
   color: #7f8c8d;
+  margin: 0;
+}
+
+.employee-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.employee-logout-btn {
+  background: white;
+  color: #e74c3c;
+  border: 2px solid #e74c3c;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.employee-logout-btn:hover {
+  background: #e74c3c;
+  color: white;
 }
 
 .loading-container {

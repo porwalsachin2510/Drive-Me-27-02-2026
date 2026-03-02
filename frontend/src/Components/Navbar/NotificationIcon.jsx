@@ -141,11 +141,13 @@ function NotificationIcon() {
   };
 
   const formatTime = (timestamp) => {
+    if (!timestamp) return 'Just now';
     const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return 'Just now';
     const now = new Date();
     const diffInMinutes = Math.floor((now - date) / (1000 * 60));
     
-    if (diffInMinutes < 1) return 'Just now';
+    if (isNaN(diffInMinutes) || diffInMinutes < 1) return 'Just now';
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
     return `${Math.floor(diffInMinutes / 1440)}d ago`;

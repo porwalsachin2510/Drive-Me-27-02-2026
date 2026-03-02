@@ -20,11 +20,48 @@
   gap: 12px;
 }
 
-.dashboard-header h1 {
+.dashboard-header-left h1 {
   color: #1a202c;
   margin: 0;
   font-size: 1.5rem;
   font-weight: 700;
+}
+
+.driver-welcome {
+  color: #718096;
+  font-size: 0.9rem;
+  margin: 4px 0 0 0;
+}
+
+.dashboard-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.driver-stat-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  min-width: 70px;
+}
+
+.driver-stat-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #a0aec0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.driver-stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a202c;
 }
 
 .driver-info {
