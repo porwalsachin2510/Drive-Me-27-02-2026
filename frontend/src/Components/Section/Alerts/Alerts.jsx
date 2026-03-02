@@ -13,12 +13,16 @@ export default function Alerts() {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
+  const isInitialLoad = useRef(true);
+
   const fetchNotifications = useCallback(async (reset = true) => {
     try {
-      if (reset) {
+      if (reset && isInitialLoad.current) {
         setLoading(true);
         setPage(1);
-        setNotifications([]);
+      } else if (reset) {
+        // Silent refresh - don't show loading or clear notifications
+        setPage(1);
       } else {
         setLoadingMore(true);
       }

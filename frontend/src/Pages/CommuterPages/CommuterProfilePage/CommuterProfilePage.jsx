@@ -38,16 +38,16 @@ export default function CommuterProfilePage() {
   };
 
   return (
-    <div className="commuter-my-profile">
+    <div className="commuter-profile-page-commuter-my-profile">
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
-      <div className="commuter-profile-container">
+      <div className="commuter-profile-page-container">
         <Sidebar />
-        <div className="commuter-profile-main">
+        <div className="commuter-profile-page-main">
           <Navigation
             profileactiveTab={profileactiveTab}
             setProfileActiveTab={setProfileActiveTab}
           />
-          <div className="commuter-profile-content">{renderContent()}</div>
+          <div className="commuter-profile-page-content">{renderContent()}</div>
         </div>
       </div>
 

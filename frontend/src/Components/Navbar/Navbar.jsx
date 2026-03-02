@@ -24,13 +24,13 @@ export default function Navbar({ activeTab, setActiveTab }) {
   const roleRedirectMap = {
     COMMUTER: "/commuter-profile",
     CORPORATE: "/corporate-profile",
-    B2C_PARTNER: "/b2c-partner-profile",
-    B2B_PARTNER: "/b2b-partner-profile",
-    ADMIN: "/admin-dashboard",
+    B2C_PARTNER: "/",
+    B2B_PARTNER: "/",
+    ADMIN: "/",
     CORPORATE_EMPLOYEE: "/employee-dashboard",
-    B2C_PARTNER_DRIVER: "/driver/b2c-dashboard",
-    B2B_PARTNER_DRIVER: "/driver/b2b-dashboard",
-    CORPORATE_DRIVER: "/driver/corporate-dashboard",
+    B2C_PARTNER_DRIVER: "/",
+    B2B_PARTNER_DRIVER: "/",
+    CORPORATE_DRIVER: "/",
   };
 
   const contractroleRedirectMap = {
@@ -76,7 +76,7 @@ export default function Navbar({ activeTab, setActiveTab }) {
     setActiveTab(tab);
     localStorage.setItem("activeTab", tab);
     setMobileMenuOpen(false);
-    
+
     if (user && user.role) {
       const contractUrl = contractroleRedirectMap[user.role] || "/login";
       navigate(contractUrl + "/contracts");
@@ -122,7 +122,7 @@ export default function Navbar({ activeTab, setActiveTab }) {
             <div className="nav-user-section">
               {/* Wallet Icon */}
               <WalletIcon />
-              
+
               {/* Notification Icon */}
               <NotificationIcon />
 

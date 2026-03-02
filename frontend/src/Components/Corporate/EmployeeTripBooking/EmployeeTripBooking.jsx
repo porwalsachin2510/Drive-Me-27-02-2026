@@ -318,23 +318,23 @@ function EmployeeTripBooking() {
 
   return (
     <div className="employee-trip-booking">
-      <div className="booking-header">
+      <div className="employee-trip-booking-header">
         <h2>Trip Booking</h2>
-        <div className="tab-navigation">
+        <div className="employee-trip-booking-tab-navigation">
           <button
-            className={`tab-btn ${activeTab === "available" ? "active" : ""}`}
+            className={`employee-trip-booking-tab-btn ${activeTab === "available" ? "active" : ""}`}
             onClick={() => setActiveTab("available")}
           >
             Available Trips
           </button>
           <button
-            className={`tab-btn ${activeTab === "my-bookings" ? "active" : ""}`}
+            className={`employee-trip-booking-tab-btn ${activeTab === "my-bookings" ? "active" : ""}`}
             onClick={() => setActiveTab("my-bookings")}
           >
             My Bookings
           </button>
           <button
-            className={`tab-btn ${activeTab === "monthly-pass" ? "active" : ""}`}
+            className={`employee-trip-booking-tab-btn ${activeTab === "monthly-pass" ? "active" : ""}`}
             onClick={() => setActiveTab("monthly-pass")}
           >
             Monthly Pass
@@ -343,30 +343,30 @@ function EmployeeTripBooking() {
       </div>
 
       {loading ? (
-        <div className="loading">Loading...</div>
+        <div className="employee-trip-booking-loading">Loading...</div>
       ) : (
-        <div className="tab-content">
+        <div className="employee-trip-booking-tab-content">
           {activeTab === "available" && (
-            <div className="available-trips">
+            <div className="employee-trip-booking-available-trips">
               {trips.length === 0 ? (
-                <div className="no-data">
+                <div className="employee-trip-booking-no-data">
                   <p>No available trips found.</p>
                 </div>
               ) : (
-                <div className="trips-grid">
+                <div className="employee-trip-booking-trips-grid">
                   {trips.map((trip) => (
-                    <div key={trip._id} className="trip-card">
-                      <div className="trip-route">
+                    <div key={trip._id} className="employee-trip-booking-trip-card">
+                      <div className="employee-trip-booking-trip-route">
                         <h3>{trip.fromLocation} → {trip.toLocation}</h3>
                         <span 
-                          className="trip-status"
+                          className="employee-trip-booking-trip-status"
                           style={{ backgroundColor: getStatusColor(trip.status) }}
                         >
                           {trip.status}
                         </span>
                       </div>
                       
-                      <div className="trip-info">
+                      <div className="employee-trip-booking-trip-info">
                         <p><strong>Date:</strong> {formatDate(trip.tripDate || trip.date)}</p>
                         <p><strong>Time:</strong> {trip.startTime} {trip.endTime ? `- ${trip.endTime}` : ''}</p>
                         <p><strong>Type:</strong> {trip.tripType || 'One Way'} {trip.direction ? `(${trip.direction})` : ''}</p>
@@ -374,14 +374,14 @@ function EmployeeTripBooking() {
                         <p><strong>Driver:</strong> {trip.driverName || trip.driverId?.fullName || 'Not assigned'}</p>
                       </div>
 
-                      <div className="trip-seats">
-                        <div className="seats-info">
-                          <span className="available-seats">{trip.availableSeats}</span>
-                          <span className="total-seats">/ {trip.totalSeats} seats</span>
+                      <div className="employee-trip-booking-trip-seats">
+                        <div className="employee-trip-booking-seats-info">
+                          <span className="employee-trip-booking-available-seats">{trip.availableSeats}</span>
+                          <span className="employee-trip-booking-total-seats">/ {trip.totalSeats} seats</span>
                         </div>
-                        <div className="seats-progress">
+                        <div className="employee-trip-booking-seats-progress">
                           <div 
-                            className="seats-progress-bar"
+                            className="employee-trip-booking-seats-progress-bar"
                             style={{ 
                               width: `${((trip.totalSeats - trip.availableSeats) / trip.totalSeats) * 100}%` 
                             }}
@@ -389,26 +389,26 @@ function EmployeeTripBooking() {
                         </div>
                       </div>
 
-                      <div className="trip-route-stops">
+                      <div className="employee-trip-booking-trip-route-stops">
                         <h4>Stop Points</h4>
-                        <div className="stops-list">
+                        <div className="employee-trip-booking-stops-list">
                           {(trip.stopPoints || trip.routeStopPoints || trip.routeId?.stopPoints || []).slice(0, 3).map((stop, index) => (
-                            <div key={index} className="stop-item">
-                              <span className="stop-location">{stop.location}</span>
-                              <span className="stop-time">{stop.time}</span>
+                            <div key={index} className="employee-trip-booking-stop-item">
+                              <span className="employee-trip-booking-stop-location">{stop.location}</span>
+                              <span className="employee-trip-booking-stop-time">{stop.time}</span>
                             </div>
                           ))}
                           {(trip.stopPoints || trip.routeStopPoints || trip.routeId?.stopPoints || []).length > 3 && (
-                            <span className="more-stops">
+                            <span className="employee-trip-booking-more-stops">
                               +{(trip.stopPoints || trip.routeStopPoints || trip.routeId?.stopPoints).length - 3} more stops
                             </span>
                           )}
                         </div>
                       </div>
 
-                      <div className="trip-actions">
+                      <div className="employee-trip-booking-trip-actions">
                         <button 
-                          className="book-btn"
+                          className="employee-trip-booking-book-btn"
                           onClick={() => handleBookTrip(trip)}
                           disabled={trip.availableSeats === 0}
                         >
@@ -416,7 +416,7 @@ function EmployeeTripBooking() {
                         </button>
                         {trip.status === "IN_PROGRESS" && (
                           <button 
-                            className="track-btn"
+                            className="employee-trip-booking-track-btn"
                             onClick={() => handleTrackDriver(trip)}
                             style={{
                               background: "#3b82f6",
@@ -441,26 +441,26 @@ function EmployeeTripBooking() {
           )}
 
           {activeTab === "my-bookings" && (
-            <div className="my-bookings">
+            <div className="employee-trip-booking-my-bookings">
               {myBookings.length === 0 ? (
-                <div className="no-data">
+                <div className="employee-trip-booking-no-data">
                   <p>You haven't booked any trips yet.</p>
                 </div>
               ) : (
-                <div className="bookings-grid">
+                <div className="employee-trip-booking-bookings-grid">
                   {myBookings.map((booking) => (
-                    <div key={booking._id} className="booking-card">
-                      <div className="booking-route">
+                    <div key={booking._id} className="employee-trip-booking-booking-card">
+                      <div className="employee-trip-booking-booking-route">
                         <h3>{booking.fromLocation} → {booking.toLocation}</h3>
                         <span 
-                          className="booking-status"
+                          className="employee-trip-booking-booking-status"
                           style={{ backgroundColor: getStatusColor(booking.status) }}
                         >
                           {booking.status}
                         </span>
                       </div>
                       
-                      <div className="booking-details">
+                      <div className="employee-trip-booking-booking-details">
                         <p><strong>Date:</strong> {formatDate(booking.tripDate || booking.date)}</p>
                         <p><strong>Time:</strong> {booking.startTime} {booking.endTime ? `- ${booking.endTime}` : ''}</p>
                         <p><strong>Type:</strong> {booking.tripType || 'One Way'}</p>
@@ -469,10 +469,10 @@ function EmployeeTripBooking() {
                         <p><strong>Pickup:</strong> {booking.pickupLocation || booking.fromLocation}</p>
                       </div>
 
-                      <div className="booking-actions">
+                      <div className="employee-trip-booking-booking-actions">
                         {booking.status === "SCHEDULED" && (
                           <button 
-                            className="cancel-btn"
+                            className="employee-trip-booking-cancel-btn"
                             onClick={() => handleCancelBooking(booking._id)}
                           >
                             Cancel Booking
@@ -480,7 +480,7 @@ function EmployeeTripBooking() {
                         )}
                         {booking.status === "IN_PROGRESS" && (
                           <button 
-                            className="track-btn"
+                            className="employee-trip-booking-track-btn"
                             onClick={() => handleTrackDriver(booking)}
                             style={{
                               background: "#3b82f6",
@@ -505,26 +505,26 @@ function EmployeeTripBooking() {
           )}
 
           {activeTab === "monthly-pass" && (
-            <div className="monthly-passes">
+            <div className="employee-trip-booking-monthly-passes">
               {monthlyPasses.length === 0 ? (
-                <div className="no-data">
+                <div className="employee-trip-booking-no-data">
                   <p>No monthly passes found. Contact your corporate admin for a pass.</p>
                 </div>
               ) : (
-                <div className="passes-grid">
+                <div className="employee-trip-booking-passes-grid">
                   {monthlyPasses.map((pass) => (
-                    <div key={pass._id} className="pass-card">
-                      <div className="pass-header">
+                    <div key={pass._id} className="employee-trip-booking-pass-card">
+                      <div className="employee-trip-booking-pass-header">
                         <h3>{pass.fromLocation || pass.routeId?.fromLocation} → {pass.toLocation || pass.routeId?.toLocation}</h3>
                         <span 
-                          className="pass-status"
+                          className="employee-trip-booking-pass-status"
                           style={{ backgroundColor: getPassStatusColor(pass.status) }}
                         >
                           {pass.status}
                         </span>
                       </div>
                       
-                      <div className="pass-details">
+                      <div className="employee-trip-booking-pass-details">
                         {pass.passType === 'CORPORATE' ? (
                           <>
                             <p><strong>Type:</strong> Corporate Transport Pass</p>
@@ -562,26 +562,26 @@ function EmployeeTripBooking() {
       )}
 
       {showBookingModal && selectedTrip && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <div className="modal-header">
+        <div className="employee-trip-booking-modal-overlay">
+          <div className="employee-trip-booking-modal">
+            <div className="employee-trip-booking-modal-header">
               <h3>Book Seat - {selectedTrip.fromLocation} → {selectedTrip.toLocation}</h3>
               <button 
-                className="close-btn"
+                className="employee-trip-booking-close-btn"
                 onClick={() => setShowBookingModal(false)}
               >
                 ×
               </button>
             </div>
 
-            <form onSubmit={handleBookingSubmit} className="modal-form">
-              <div className="trip-summary">
+            <form onSubmit={handleBookingSubmit} className="employee-trip-booking-modal-form">
+              <div className="employee-trip-booking-trip-summary">
                 <p><strong>Date:</strong> {formatDate(selectedTrip.tripDate)}</p>
                 <p><strong>Time:</strong> {selectedTrip.startTime} - {selectedTrip.endTime}</p>
                 <p><strong>Available Seats:</strong> {selectedTrip.availableSeats}</p>
               </div>
 
-              <div className="form-group">
+              <div className="employee-trip-booking-form-group">
                 <label>Pickup Point</label>
                 <select
                   value={bookingData.pickupPoint}
@@ -597,7 +597,7 @@ function EmployeeTripBooking() {
                 </select>
               </div>
 
-              <div className="form-group">
+              <div className="employee-trip-booking-form-group">
                 <label>Seat Number</label>
                 <input
                   type="number"
@@ -609,17 +609,17 @@ function EmployeeTripBooking() {
                 />
               </div>
 
-              <div className="modal-actions">
+              <div className="employee-trip-booking-modal-actions">
                 <button 
                   type="button"
-                  className="cancel-btn"
+                  className="employee-trip-booking-cancel-btn"
                   onClick={() => setShowBookingModal(false)}
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
-                  className="submit-btn"
+                  className="employee-trip-booking-submit-btn"
                   disabled={loading}
                 >
                   {loading ? "Booking..." : "Book Seat"}
@@ -632,12 +632,12 @@ function EmployeeTripBooking() {
 
       {/* Driver Tracking Modal */}
       {showTrackingModal && trackingTrip && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: "800px", width: "95%" }}>
-            <div className="modal-header">
+        <div className="employee-trip-booking-modal-overlay">
+          <div className="employee-trip-booking-modal" style={{ maxWidth: "800px", width: "95%" }}>
+            <div className="employee-trip-booking-modal-header">
               <h3>Track Driver - {trackingTrip.fromLocation} → {trackingTrip.toLocation}</h3>
               <button 
-                className="close-btn"
+                className="employee-trip-booking-close-btn"
                 onClick={handleStopTracking}
               >
                 ×

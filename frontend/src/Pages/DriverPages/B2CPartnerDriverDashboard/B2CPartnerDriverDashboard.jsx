@@ -403,15 +403,7 @@ function B2CPartnerDriverDashboard() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="b2c-partner-driver-dashboard">
-        <div className="loading">Loading bookings...</div>
-      </div>
-    );
-  }
-
-  // Compute dynamic stats from driverBookings
+  // Compute dynamic stats from driverBookings (must be before any early return)
   const driverStats = useMemo(() => {
     const bookingsArr = Array.isArray(driverBookings) ? driverBookings : [];
     const totalTrips = bookingsArr.length;
@@ -420,13 +412,20 @@ function B2CPartnerDriverDashboard() {
     const rejectedTrips = bookingsArr.filter(b => b.bookingStatus === "REJECTED").length;
     const totalDecisions = acceptedTrips + rejectedTrips;
     const acceptanceRate = totalDecisions > 0 ? Math.round((acceptedTrips / totalDecisions) * 100) : 100;
-    // Rating: compute from completed trips that have a rating, else show N/A
     const ratedTrips = bookingsArr.filter(b => b.rating && b.rating > 0);
     const avgRating = ratedTrips.length > 0 
       ? (ratedTrips.reduce((sum, b) => sum + b.rating, 0) / ratedTrips.length).toFixed(1)
       : "N/A";
     return { totalTrips, completedTrips, acceptanceRate, avgRating };
   }, [driverBookings]);
+
+  if (loading) {
+    return (
+      <div className="b2c-partner-driver-dashboard">
+        <div className="loading">Loading bookings...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="b2c-partner-driver-dashboard">
@@ -438,7 +437,7 @@ function B2CPartnerDriverDashboard() {
         <div className="dashboard-header-right">
           <div className="driver-stat-box">
             <span className="driver-stat-label">RATING</span>
-            <span className="driver-stat-value">{driverStats.avgRating}{driverStats.avgRating !== "N/A" ? " *" : ""}</span>
+            <span className="driver-stat-value">{driverStats.avgRating}{driverStats.avgRating !== "N/A" ? "\u2605" : ""}</span>
           </div>
           <div className="driver-stat-box">
             <span className="driver-stat-label">TRIPS</span>

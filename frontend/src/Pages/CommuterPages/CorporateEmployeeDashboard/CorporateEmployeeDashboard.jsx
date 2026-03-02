@@ -190,54 +190,54 @@ export default function CorporateEmployeeDashboard() {
     <div className="corporate-employee-dashboard">
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      <div className="employee-dashboard-container">
-        <div className="employee-dashboard-header">
-          <div className="employee-header-left">
+      <div className="corporate-employee-dashboard-with-tabs-container">
+        <div className="corporate-employee-dashboard-with-tabs-header">
+          <div className="corporate-employee-dashboard-with-tabs-header-left">
             <h1>Welcome, {user?.fullName || 'Employee'}</h1>
             <p>Corporate Employee Transportation Dashboard</p>
           </div>
-          <div className="employee-header-right">
-            <button className="employee-logout-btn" onClick={handleLogout}>
+          <div className="corporate-employee-dashboard-with-tabs-header-right">
+            <button className="corporate-employee-dashboard-with-tabs-logout-btn" onClick={handleLogout}>
               Logout
             </button>
           </div>
         </div>
 
         {error && (
-          <div className="error-banner">
+          <div className="corporate-employee-dashboard-with-tabs-error-banner">
             <p>{error}</p>
             <button onClick={fetchEmployeeDashboardData}>Retry</button>
           </div>
         )}
 
         {loading || tripsLoading ? (
-          <div className="loading-container">
-            <div className="spinner"></div>
+          <div className="corporate-employee-dashboard-with-tabs-loading-container">
+            <div className="corporate-employee-dashboard-with-tabs-spinner"></div>
             <p>Loading your dashboard...</p>
           </div>
         ) : (
-          <div className="employee-dashboard-content">
-            <div className="dashboard-tabs">
+          <div className="corporate-employee-dashboard-with-tabs-content">
+            <div className="corporate-employee-dashboard-with-tabs-tabs">
               <button
-                className={`tab-btn ${activeSection === "trip-info" ? "active" : ""}`}
+                className={`corporate-employee-dashboard-with-tabs-tab-btn ${activeSection === "trip-info" ? "active" : ""}`}
                 onClick={() => setActiveSection("trip-info")}
               >
                 Trip Info
               </button>
               <button
-                className={`tab-btn ${activeSection === "bookings" ? "active" : ""}`}
+                className={`corporate-employee-dashboard-with-tabs-tab-btn ${activeSection === "bookings" ? "active" : ""}`}
                 onClick={() => setActiveSection("bookings")}
               >
                 My Bookings
               </button>
               <button
-                className={`tab-btn ${activeSection === "history" ? "active" : ""}`}
+                className={`corporate-employee-dashboard-with-tabs-tab-btn ${activeSection === "history" ? "active" : ""}`}
                 onClick={() => setActiveSection("history")}
               >
                 History
               </button>
               <button
-                className={`tab-btn ${activeSection === "notifications" ? "active" : ""}`}
+                className={`corporate-employee-dashboard-with-tabs-tab-btn ${activeSection === "notifications" ? "active" : ""}`}
                 onClick={() => setActiveSection("notifications")}
               >
                 Notifications
@@ -246,39 +246,39 @@ export default function CorporateEmployeeDashboard() {
 
             {/* Assigned Bus Card */}
             {activeSection === "trip-info" && (
-              <div className="section-content">
-                <div className="assigned-bus-card">
+              <div className="corporate-employee-dashboard-with-tabs-section-content">
+                <div className="corporate-employee-dashboard-with-tabs-assigned-bus-card">
                   <h2>Your Assigned Bus Route</h2>
                   {assignedBus?.route ? (
-                    <div className="bus-details">
-                      <div className="route-info">
-                        <div className="route-item">
+                    <div className="corporate-employee-dashboard-with-tabs-bus-details">
+                      <div className="corporate-employee-dashboard-with-tabs-route-info">
+                        <div className="corporate-employee-dashboard-with-tabs-route-item">
                           <label>From:</label>
                           <span>
                             {assignedBus.route?.fromLocation || "Loading..."}
                           </span>
                         </div>
-                        <div className="route-item">
+                        <div className="corporate-employee-dashboard-with-tabs-route-item">
                           <label>To:</label>
                           <span>{assignedBus.route?.toLocation || "Loading..."}</span>
                         </div>
-                        <div className="route-item">
+                        <div className="corporate-employee-dashboard-with-tabs-route-item">
                           <label>Pickup Stop:</label>
                           <span>{assignedBus.pickupStop || "Not assigned"}</span>
                         </div>
-                        <div className="route-item">
+                        <div className="corporate-employee-dashboard-with-tabs-route-item">
                           <label>Dropoff Stop:</label>
                           <span>{assignedBus.dropoffStop || "Not assigned"}</span>
                         </div>
-                        <div className="route-item">
+                        <div className="corporate-employee-dashboard-with-tabs-route-item">
                           <label>Shift Type:</label>
                           <span>{assignedBus.shiftType || "Full Day"}</span>
                         </div>
                       </div>
 
-                      <div className="driver-info">
+                      <div className="corporate-employee-dashboard-with-tabs-driver-info">
                         <h3>Driver Information</h3>
-                        <div className="driver-details">
+                        <div className="corporate-employee-dashboard-with-tabs-driver-details">
                           <p>
                             <strong>Name:</strong>{" "}
                             {assignedBus.driver?.fullName || "To be assigned"}
@@ -294,9 +294,9 @@ export default function CorporateEmployeeDashboard() {
                         </div>
                       </div>
 
-                      <div className="vehicle-info">
+                      <div className="corporate-employee-dashboard-with-tabs-vehicle-info">
                         <h3>Vehicle Information</h3>
-                        <div className="vehicle-details">
+                        <div className="corporate-employee-dashboard-with-tabs-vehicle-details">
                           <p>
                             <strong>Vehicle:</strong>{" "}
                             {assignedBus.vehicle
@@ -319,13 +319,13 @@ export default function CorporateEmployeeDashboard() {
                       </div>
 
                       {assignedBus.route?.stopPoints && assignedBus.route.stopPoints.length > 0 && (
-                        <div className="stop-points-info">
+                        <div className="corporate-employee-dashboard-with-tabs-stop-points-info">
                           <h3>Stop Points</h3>
-                          <div className="stop-points-list">
+                          <div className="corporate-employee-dashboard-with-tabs-stop-points-list">
                             {assignedBus.route.stopPoints.map((stop, index) => (
-                              <div key={index} className="stop-point-item">
-                                <span className="stop-location">{stop.location}</span>
-                                <span className="stop-time">{stop.time || "Time not set"}</span>
+                              <div key={index} className="corporate-employee-dashboard-with-tabs-stop-point-item">
+                                <span className="corporate-employee-dashboard-with-tabs-stop-location">{stop.location}</span>
+                                <span className="corporate-employee-dashboard-with-tabs-stop-time">{stop.time || "Time not set"}</span>
                               </div>
                             ))}
                           </div>
@@ -333,7 +333,7 @@ export default function CorporateEmployeeDashboard() {
                       )}
                     </div>
                   ) : (
-                    <div className="no-bus-assigned">
+                    <div className="corporate-employee-dashboard-with-tabs-no-bus-assigned">
                       <p>
                         No bus route assigned yet. Please contact your manager.
                       </p>
@@ -341,24 +341,24 @@ export default function CorporateEmployeeDashboard() {
                   )}
                 </div>
 
-                <div className="today-trips-card">
+                <div className="corporate-employee-dashboard-with-tabs-today-trips-card">
                   <h2>Your Assigned Trips Today</h2>
                   {todayTrips.length > 0 ? (
-                    <div className="trips-list">
+                    <div className="corporate-employee-dashboard-with-tabs-trips-list">
                       {todayTrips.map((trip) => (
-                        <div key={trip._id} className="trip-item">
-                          <div className="trip-timing">
-                            <span className="trip-time">{trip.startTime}</span>
-                            <span className="trip-route">
+                        <div key={trip._id} className="corporate-employee-dashboard-with-tabs-trip-item">
+                          <div className="corporate-employee-dashboard-with-tabs-trip-timing">
+                            <span className="corporate-employee-dashboard-with-tabs-trip-time">{trip.startTime}</span>
+                            <span className="corporate-employee-dashboard-with-tabs-trip-route">
                               {trip.fromLocation} → {trip.toLocation}
                             </span>
                             {trip.currentLocation && (
-                              <span className="trip-location">
+                              <span className="corporate-employee-dashboard-with-tabs-trip-location">
                                 Driver Location: {trip.currentLocation.lat?.toFixed(2)}, {trip.currentLocation.lng?.toFixed(2)}
                               </span>
                             )}
                           </div>
-                          <div className="trip-details">
+                          <div className="corporate-employee-dashboard-with-tabs-trip-details">
                             <span>Status: <strong>{trip.status}</strong></span>
                             <span>Pickup: {trip.pickupPoint || trip.fromLocation}</span>
                             {trip.driverInfo && (
@@ -366,7 +366,7 @@ export default function CorporateEmployeeDashboard() {
                             )}
                           </div>
                           <button
-                            className="book-btn"
+                            className="corporate-employee-dashboard-with-tabs-book-btn"
                             onClick={() => handleBookTrip(trip._id)}
                           >
                             Check In
@@ -375,7 +375,7 @@ export default function CorporateEmployeeDashboard() {
                       ))}
                     </div>
                   ) : (
-                    <div className="no-trips">
+                    <div className="corporate-employee-dashboard-with-tabs-no-trips">
                       <p>No trips assigned for today</p>
                     </div>
                   )}
@@ -385,36 +385,36 @@ export default function CorporateEmployeeDashboard() {
 
             {/* My Bookings */}
             {activeSection === "bookings" && (
-              <div className="section-content">
-                <div className="bookings-card">
+              <div className="corporate-employee-dashboard-with-tabs-section-content">
+                <div className="corporate-employee-dashboard-with-tabs-bookings-card">
                   <h2>My Upcoming Bookings</h2>
                   {(bookings?.length > 0 || upcomingTripsRedux?.length > 0) ? (
-                    <div className="bookings-list">
+                    <div className="corporate-employee-dashboard-with-tabs-bookings-list">
                       {(bookings?.length > 0 ? bookings : upcomingTripsRedux).map((booking) => (
-                        <div key={booking._id} className="booking-item">
-                          <div className="booking-date">
+                        <div key={booking._id} className="corporate-employee-dashboard-with-tabs-booking-item">
+                          <div className="corporate-employee-dashboard-with-tabs-booking-date">
                             {new Date(booking.tripDate || booking.date).toLocaleDateString()}
                           </div>
-                          <div className="booking-info">
-                            <span className="booking-time">
+                          <div className="corporate-employee-dashboard-with-tabs-booking-info">
+                            <span className="corporate-employee-dashboard-with-tabs-booking-time">
                               {booking.startTime || 'TBD'}
                             </span>
-                            <span className="booking-route">
+                            <span className="corporate-employee-dashboard-with-tabs-booking-route">
                               {booking.fromLocation || 'Unknown'} → {booking.toLocation || 'Unknown'}
                             </span>
                           </div>
-                          <div className="booking-seat">
+                          <div className="corporate-employee-dashboard-with-tabs-booking-seat">
                             <span>Vehicle: {booking.vehicleName || vehicleInfo?.vehicleName || 'Assigned'}</span>
                           </div>
-                          <div className="booking-status">
+                          <div className="corporate-employee-dashboard-with-tabs-booking-status">
                             <span
-                              className={`status-badge ${booking.status?.toLowerCase()}`}
+                              className={`corporate-employee-dashboard-with-tabs-status-badge ${booking.status?.toLowerCase()}`}
                             >
                               {booking.status}
                             </span>
                           </div>
                           <button
-                            className="cancel-btn"
+                            className="corporate-employee-dashboard-with-tabs-cancel-btn"
                             onClick={() => handleCancelBooking(booking._id)}
                           >
                             Cancel
@@ -423,7 +423,7 @@ export default function CorporateEmployeeDashboard() {
                       ))}
                     </div>
                   ) : (
-                    <div className="no-bookings">
+                    <div className="corporate-employee-dashboard-with-tabs-no-bookings">
                       <p>No bookings yet</p>
                     </div>
                   )}
@@ -433,20 +433,20 @@ export default function CorporateEmployeeDashboard() {
 
             {/* Travel History */}
             {activeSection === "history" && (
-              <div className="section-content">
-                <div className="history-card">
+              <div className="corporate-employee-dashboard-with-tabs-section-content">
+                <div className="corporate-employee-dashboard-with-tabs-history-card">
                   <h2>Travel History</h2>
                   {travelHistory && travelHistory.length > 0 ? (
-                    <div className="history-list">
+                    <div className="corporate-employee-dashboard-with-tabs-history-list">
                       {travelHistory.map((trip) => (
-                        <div key={trip._id} className="history-item">
-                          <div className="history-date">
+                        <div key={trip._id} className="corporate-employee-dashboard-with-tabs-history-item">
+                          <div className="corporate-employee-dashboard-with-tabs-history-date">
                             {new Date(trip.travelDate || trip.tripDate || trip.date).toLocaleDateString()}
                           </div>
-                          <div className="history-info">
+                          <div className="corporate-employee-dashboard-with-tabs-history-info">
                             <span>{trip.route || `${trip.fromLocation || 'Unknown'} → ${trip.toLocation || 'Unknown'}`}</span>
                           </div>
-                          <div className="history-reason">
+                          <div className="corporate-employee-dashboard-with-tabs-history-reason">
                             <span>
                               Status: {trip.status || 'Completed'}
                             </span>
@@ -463,7 +463,7 @@ export default function CorporateEmployeeDashboard() {
                       ))}
                     </div>
                   ) : (
-                    <div className="no-history">
+                    <div className="corporate-employee-dashboard-with-tabs-no-history">
                       <p>No travel history</p>
                     </div>
                   )}
@@ -473,32 +473,32 @@ export default function CorporateEmployeeDashboard() {
 
             {/* Notifications */}
             {activeSection === "notifications" && (
-              <div className="section-content">
-                <div className="notifications-card">
+              <div className="corporate-employee-dashboard-with-tabs-section-content">
+                <div className="corporate-employee-dashboard-with-tabs-notifications-card">
                   <h2>Recent Notifications</h2>
                   {notifications.length > 0 ? (
-                    <div className="notifications-list">
+                    <div className="corporate-employee-dashboard-with-tabs-notifications-list">
                       {notifications.map((notif) => (
-                        <div key={notif._id} className="notification-item">
-                          <div className="notification-type">
+                        <div key={notif._id} className="corporate-employee-dashboard-with-tabs-notification-item">
+                          <div className="corporate-employee-dashboard-with-tabs-notification-type">
                             <span
-                              className={`type-badge ${notif.type?.toLowerCase()}`}
+                              className={`corporate-employee-dashboard-with-tabs-type-badge ${notif.type?.toLowerCase()}`}
                             >
                               {notif.type}
                             </span>
                           </div>
-                          <div className="notification-content">
+                          <div className="corporate-employee-dashboard-with-tabs-notification-content">
                             <h4>{notif.title}</h4>
                             <p>{notif.message}</p>
                           </div>
-                          <div className="notification-time">
+                          <div className="corporate-employee-dashboard-with-tabs-notification-date">
                             {new Date(notif.createdAt).toLocaleString()}
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="no-notifications">
+                    <div className="corporate-employee-dashboard-with-tabs-no-notifications">
                       <p>No notifications yet</p>
                     </div>
                   )}
