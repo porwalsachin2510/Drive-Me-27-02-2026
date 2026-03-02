@@ -356,78 +356,78 @@ const filteredBookings = bookings.filter((booking) => {
   
   return (
     <div className="corporate-driver-dashboard">
-      <button className="b2b-logout-btn" onClick={handleLogout}>
+      <button className="corp-logout-btn" onClick={handleLogout}>
         Log Out
       </button>
-      <div className="dashboard-header">
+      <div className="corp-driver-dashboard-header">
         <h1>Corporate Driver Dashboard</h1>
-        <div className="driver-info">
+        <div className="corp-driver-driver-info">
           <span>Welcome, {user?.fullName}</span>
           <div
-            className={`location-status ${isSharingLocation ? "active" : ""}`}
+            className={`corp-driver-location-status ${isSharingLocation ? "active" : ""}`}
           >
             📍 {isSharingLocation ? "Sharing Live" : "Not Sharing"}
           </div>
         </div>
       </div>
 
-      <div className="dashboard-tabs">
+      <div className="corp-driver-dashboard-tabs">
         <button
-          className={`tab ${activeMainTab === "bookings" ? "active" : ""}`}
+          className={`corp-driver-tab ${activeMainTab === "bookings" ? "active" : ""}`}
           onClick={() => setActiveMainTab("bookings")}
         >
           Bookings
         </button>
         <button
-          className={`tab ${activeMainTab === "notifications" ? "active" : ""}`}
+          className={`corp-driver-tab ${activeMainTab === "notifications" ? "active" : ""}`}
           onClick={() => setActiveMainTab("notifications")}
         >
           Notifications
         </button>
         <button
-          className={`tab ${activeMainTab === "location" ? "active" : ""}`}
+          className={`corp-driver-tab ${activeMainTab === "location" ? "active" : ""}`}
           onClick={() => setActiveMainTab("location")}
         >
           Live Location
         </button>
       </div>
 
-      <div className="dashboard-content">
+      <div className="corp-driver-dashboard-content">
         {activeMainTab === "bookings" && (
-          <div className="bookings-section">
-            <div className="booking-tabs">
+          <div className="corp-driver-bookings-section">
+            <div className="corp-driver-booking-tabs">
               <button
-                className={`booking-tab ${activeBookingTab === "confirmed" ? "active" : ""}`}
+                className={`corp-driver-booking-tab ${activeBookingTab === "confirmed" ? "active" : ""}`}
                 onClick={() => setActiveBookingTab("confirmed")}
               >
                 Confirmed Bookings
               </button>
               <button
-                className={`booking-tab ${activeBookingTab === "in-progress" ? "active" : ""}`}
+                className={`corp-driver-booking-tab ${activeBookingTab === "in-progress" ? "active" : ""}`}
                 onClick={() => setActiveBookingTab("in-progress")}
               >
                 In Progress
               </button>
               <button
-                className={`booking-tab ${activeBookingTab === "completed" ? "active" : ""}`}
+                className={`corp-driver-booking-tab ${activeBookingTab === "completed" ? "active" : ""}`}
                 onClick={() => setActiveBookingTab("completed")}
               >
                 Completed
               </button>
             </div>
 
-            <div className="booking-cards">
+            <div className="corp-driver-booking-cards">
               {activeBookingTab === "confirmed" && (
-                <div className="booking-card">
+                <div className="corp-driver-booking-card">
                   <h3>Confirmed Bookings</h3>
-                  <div className="booking-list">
+                  <div className="corp-driver-booking-list">
                     {filteredBookings.length > 0 ? (
                       filteredBookings.map((booking) => (
                         <div
                           key={booking._id}
-                          className="booking-item confirmed"
+                          className="corp-driver-booking-item confirmed"
                         >
-                          <div className="booking-details">
+                          <div className="corp-driver-booking-details">
                             <p>
                               <strong>Route:</strong>{" "}
                               {getPickupLocation(booking)} → {getDropoffLocation(booking)}
@@ -443,7 +443,7 @@ const filteredBookings = bookings.filter((booking) => {
                               <strong>Passengers:</strong> {getPassengerCount(booking)}
                             </p>
                             {booking.passengers && booking.passengers.length > 0 && (
-                              <div className="passenger-list">
+                              <div className="corp-driver-passenger-list">
                                 <strong>Employees:</strong>
                                 <ul>
                                   {booking.passengers.map((p, idx) => (
@@ -455,10 +455,10 @@ const filteredBookings = bookings.filter((booking) => {
                               </div>
                             )}
                           </div>
-                          <div className="booking-actions">
+                          <div className="corp-driver-booking-actions">
                             <button
                               onClick={() => startTrip(booking._id)}
-                              className="start-btn"
+                              className="corp-driver-start-btn"
                             >
                               Start Trip
                             </button>
@@ -466,7 +466,7 @@ const filteredBookings = bookings.filter((booking) => {
                         </div>
                       ))
                     ) : (
-                      <div className="no-bookings">
+                      <div className="corp-driver-no-bookings">
                         <p>No confirmed bookings</p>
                       </div>
                     )}
@@ -475,16 +475,16 @@ const filteredBookings = bookings.filter((booking) => {
               )}
 
               {activeBookingTab === "in-progress" && (
-                <div className="booking-card">
+                <div className="corp-driver-booking-card">
                   <h3>In Progress Trips</h3>
-                  <div className="booking-list">
+                  <div className="corp-driver-booking-list">
                     {filteredBookings.length > 0 ? (
                       filteredBookings.map((booking) => (
                         <div
                           key={booking._id}
-                          className="booking-item in-progress"
+                          className="corp-driver-booking-item in-progress"
                         >
-                          <div className="booking-details">
+                          <div className="corp-driver-booking-details">
                             <p>
                               <strong>Route:</strong>{" "}
                               {getPickupLocation(booking)} → {getDropoffLocation(booking)}
@@ -496,14 +496,14 @@ const filteredBookings = bookings.filter((booking) => {
                             <p>
                               <strong>Passengers:</strong> {getPassengerCount(booking)}
                             </p>
-                            <div className="status-badge in-progress">
+                            <div className="corp-driver-status-badge in-progress">
                               In Progress
                             </div>
                           </div>
-                          <div className="booking-actions">
+                          <div className="corp-driver-booking-actions">
                             <button
                               onClick={() => completeTrip(booking._id)}
-                              className="complete-btn"
+                              className="corp-driver-complete-btn"
                             >
                               Complete Trip
                             </button>
@@ -511,7 +511,7 @@ const filteredBookings = bookings.filter((booking) => {
                         </div>
                       ))
                     ) : (
-                      <div className="no-bookings">
+                      <div className="corp-driver-no-bookings">
                         <p>No trips in progress</p>
                       </div>
                     )}
@@ -520,16 +520,16 @@ const filteredBookings = bookings.filter((booking) => {
               )}
 
               {activeBookingTab === "completed" && (
-                <div className="booking-card">
+                <div className="corp-driver-booking-card">
                   <h3>Completed Trips</h3>
-                  <div className="booking-list">
+                  <div className="corp-driver-booking-list">
                     {filteredBookings.length > 0 ? (
                       filteredBookings.map((booking) => (
                         <div
                           key={booking._id}
-                          className="booking-item completed"
+                          className="corp-driver-booking-item completed"
                         >
-                          <div className="booking-details">
+                          <div className="corp-driver-booking-details">
                             <p>
                               <strong>Route:</strong>{" "}
                               {getPickupLocation(booking)} → {getDropoffLocation(booking)}
@@ -541,14 +541,14 @@ const filteredBookings = bookings.filter((booking) => {
                             <p>
                               <strong>Passengers:</strong> {getPassengerCount(booking)}
                             </p>
-                            <div className="status-badge completed">
+                            <div className="corp-driver-status-badge completed">
                               Completed
                             </div>
                           </div>
                         </div>
                       ))
                     ) : (
-                      <div className="no-bookings">
+                      <div className="corp-driver-no-bookings">
                         <p>No completed trips</p>
                       </div>
                     )}

@@ -921,7 +921,7 @@ const CommuterMyBookingsPage = () => {
                       )}
                     {booking.monthlyPassId && (
                       <button
-                        className="btn-download-pass"
+                        className="cmbp-btn-download-pass"
                         onClick={() => handleDownloadPassCertificate(booking.monthlyPassId)}
                         style={{
                           background: "linear-gradient(135deg, #1a237e 0%, #0d47a1 100%)",
@@ -1066,7 +1066,7 @@ const CommuterMyBookingsPage = () => {
 
             {/* Enhanced Real-Time Map */}
             <div
-              className="map-container"
+              className="cmbp-map-container"
               style={{
                 height: "450px",
                 borderRadius: "12px",
@@ -1475,7 +1475,7 @@ const CommuterMyBookingsPage = () => {
               })()}
 
               <button
-                className="track-btn"
+                className="cmbp-track-btn"
                 onClick={() => startRealTimeTracking(selectedBooking)}
                 style={{
                   background:

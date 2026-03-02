@@ -357,75 +357,75 @@ function B2BPartnerDriverDashboard() {
         Log Out
       </button>
       
-      <div className="dashboard-header">
+      <div className="B2BPartner-driver-dashboard-with-tabs-header">
         <h1>B2B Partner Driver Dashboard</h1>
-        <div className="driver-info">
+        <div className="B2BPartner-driver-dashboard-with-tabs-driver-info">
           <span>Welcome, {user?.fullName || user?.name}</span>
           <div
-            className={`location-status ${isSharingLocation ? "active" : ""}`}
+            className={`B2BPartner-driver-dashboard-with-tabs-location-status ${isSharingLocation ? "active" : ""}`}
           >
             📍 {isSharingLocation ? "Sharing Live" : "Not Sharing"}
           </div>
         </div>
       </div>
 
-      <div className="dashboard-tabs">
+      <div className="B2BPartner-driver-dashboard-with-tabs-tabs">
         <button
-          className={`tab ${activeMainTab === "bookings" ? "active" : ""}`}
+          className={`B2BPartner-driver-dashboard-with-tabs-tab ${activeMainTab === "bookings" ? "active" : ""}`}
           onClick={() => setActiveMainTab("bookings")}
         >
           Bookings
         </button>
         <button
-          className={`tab ${activeMainTab === "notifications" ? "active" : ""}`}
+          className={`B2BPartner-driver-dashboard-with-tabs-tab ${activeMainTab === "notifications" ? "active" : ""}`}
           onClick={() => setActiveMainTab("notifications")}
         >
           Notifications
         </button>
         <button
-          className={`tab ${activeMainTab === "location" ? "active" : ""}`}
+          className={`B2BPartner-driver-dashboard-with-tabs-tab ${activeMainTab === "location" ? "active" : ""}`}
           onClick={() => setActiveMainTab("location")}
         >
           Live Location
         </button>
       </div>
 
-      <div className="dashboard-content">
+      <div className="B2BPartner-driver-dashboard-with-tabs-content">
         {activeMainTab === "bookings" && (
-          <div className="bookings-section">
-            <div className="booking-tabs">
+          <div className="B2BPartner-driver-dashboard-with-tabs-bookings-section">
+            <div className="B2BPartner-driver-dashboard-with-tabs-booking-tabs">
               <button
-                className={`booking-tab ${activeBookingTab === "confirmed" ? "active" : ""}`}
+                className={`B2BPartner-driver-dashboard-with-tabs-booking-tab ${activeBookingTab === "confirmed" ? "active" : ""}`}
                 onClick={() => setActiveBookingTab("confirmed")}
               >
                 Confirmed Bookings
               </button>
               <button
-                className={`booking-tab ${activeBookingTab === "in-progress" ? "active" : ""}`}
+                className={`B2BPartner-driver-dashboard-with-tabs-booking-tab ${activeBookingTab === "in-progress" ? "active" : ""}`}
                 onClick={() => setActiveBookingTab("in-progress")}
               >
                 In Progress
               </button>
               <button
-                className={`booking-tab ${activeBookingTab === "completed" ? "active" : ""}`}
+                className={`B2BPartner-driver-dashboard-with-tabs-booking-tab ${activeBookingTab === "completed" ? "active" : ""}`}
                 onClick={() => setActiveBookingTab("completed")}
               >
                 Completed
               </button>
             </div>
 
-            <div className="booking-cards">
+            <div className="B2BPartner-driver-dashboard-with-tabs-booking-cards">
               {activeBookingTab === "confirmed" && (
-                <div className="booking-card">
+                <div className="B2BPartner-driver-dashboard-with-tabs-booking-card">
                   <h3>Confirmed Bookings</h3>
-                  <div className="booking-list">
+                  <div className="B2BPartner-driver-dashboard-with-tabs-booking-list">
                     {filteredBookings.length > 0 ? (
                       filteredBookings.map((booking) => (
                         <div
                           key={booking._id}
-                          className="booking-item confirmed"
+                          className="B2BPartner-driver-dashboard-with-tabs-booking-item confirmed"
                         >
-                          <div className="booking-details">
+                          <div className="B2BPartner-driver-dashboard-with-tabs-booking-details">
                             <p>
                               <strong>Route:</strong> {getPickupLocation(booking)} → {getDropoffLocation(booking)}
                             </p>
@@ -440,7 +440,7 @@ function B2BPartnerDriverDashboard() {
                               <strong>Passengers:</strong> {getPassengerCount(booking)}
                             </p>
                             {booking.passengers && booking.passengers.length > 0 && (
-                              <div className="passenger-list">
+                              <div className="B2BPartner-driver-dashboard-with-tabs-passenger-list">
                                 <strong>Booked Employees:</strong>
                                 <ul>
                                   {booking.passengers.map((p, idx) => (
@@ -452,10 +452,10 @@ function B2BPartnerDriverDashboard() {
                               </div>
                             )}
                           </div>
-                          <div className="booking-actions">
+                          <div className="B2BPartner-driver-dashboard-with-tabs-booking-actions">
                             <button
                               onClick={() => startTrip(booking._id)}
-                              className="start-btn"
+                              className="B2BPartner-driver-dashboard-with-tabs-start-btn"
                             >
                               Start Trip
                             </button>
@@ -463,7 +463,7 @@ function B2BPartnerDriverDashboard() {
                         </div>
                       ))
                     ) : (
-                      <div className="no-bookings">
+                      <div className="B2BPartner-driver-dashboard-with-tabs-no-bookings">
                         <p>No confirmed bookings</p>
                       </div>
                     )}
@@ -472,16 +472,16 @@ function B2BPartnerDriverDashboard() {
               )}
 
               {activeBookingTab === "in-progress" && (
-                <div className="booking-card">
+                <div className="B2BPartner-driver-dashboard-with-tabs-booking-card">
                   <h3>In Progress Trips</h3>
-                  <div className="booking-list">
+                  <div className="B2BPartner-driver-dashboard-with-tabs-booking-list">
                     {filteredBookings.length > 0 ? (
                       filteredBookings.map((booking) => (
                         <div
                           key={booking._id}
-                          className="booking-item in-progress"
+                          className="B2BPartner-driver-dashboard-with-tabs-booking-item in-progress"
                         >
-                          <div className="booking-details">
+                          <div className="B2BPartner-driver-dashboard-with-tabs-booking-details">
                             <p>
                               <strong>Route:</strong> {getPickupLocation(booking)} → {getDropoffLocation(booking)}
                             </p>
@@ -495,14 +495,14 @@ function B2BPartnerDriverDashboard() {
                             <p>
                               <strong>Passengers:</strong> {getPassengerCount(booking)}
                             </p>
-                            <div className="status-badge in-progress">
+                            <div className="B2BPartner-driver-dashboard-with-tabs-status-badge in-progress">
                               In Progress
                             </div>
                           </div>
-                          <div className="booking-actions">
+                          <div className="B2BPartner-driver-dashboard-with-tabs-booking-actions">
                             <button
                               onClick={() => completeTrip(booking._id)}
-                              className="complete-btn"
+                              className="B2BPartner-driver-dashboard-with-tabs-complete-btn"
                             >
                               Complete Trip
                             </button>
@@ -510,7 +510,7 @@ function B2BPartnerDriverDashboard() {
                         </div>
                       ))
                     ) : (
-                      <div className="no-bookings">
+                      <div className="B2BPartner-driver-dashboard-with-tabs-no-bookings">
                         <p>No trips in progress</p>
                       </div>
                     )}
@@ -519,16 +519,16 @@ function B2BPartnerDriverDashboard() {
               )}
 
               {activeBookingTab === "completed" && (
-                <div className="booking-card">
+                <div className="B2BPartner-driver-dashboard-with-tabs-booking-card">
                   <h3>Completed Trips</h3>
-                  <div className="booking-list">
+                  <div className="B2BPartner-driver-dashboard-with-tabs-booking-list">
                     {filteredBookings.length > 0 ? (
                       filteredBookings.map((booking) => (
                         <div
                           key={booking._id}
-                          className="booking-item completed"
+                          className="B2BPartner-driver-dashboard-with-tabs-booking-item completed"
                         >
-                          <div className="booking-details">
+                          <div className="B2BPartner-driver-dashboard-with-tabs-booking-details">
                             <p>
                               <strong>Route:</strong> {getPickupLocation(booking)} → {getDropoffLocation(booking)}
                             </p>
@@ -542,14 +542,14 @@ function B2BPartnerDriverDashboard() {
                             <p>
                               <strong>Passengers:</strong> {getPassengerCount(booking)}
                             </p>
-                            <div className="status-badge completed">
+                            <div className="B2BPartner-driver-dashboard-with-tabs-status-badge completed">
                               Completed
                             </div>
                           </div>
                         </div>
                       ))
                     ) : (
-                      <div className="no-bookings">
+                      <div className="B2BPartner-driver-dashboard-with-tabs-no-bookings">
                         <p>No completed trips</p>
                       </div>
                     )}
@@ -561,21 +561,21 @@ function B2BPartnerDriverDashboard() {
         )}
 
         {activeMainTab === "notifications" && (
-          <div className="notifications-section">
+          <div className="B2BPartner-driver-dashboard-with-tabs-notifications-section">
             <h3>Notifications</h3>
-            <div className="notification-list">
+            <div className="B2BPartner-driver-dashboard-with-tabs-notification-list">
               {notifications.length > 0 ? (
                 notifications.map((notification) => (
-                  <div key={notification._id} className={`notification-item ${!notification.isRead ? 'unread' : ''}`}>
+                  <div key={notification._id} className={`B2BPartner-driver-dashboard-with-tabs-notification-item ${!notification.isRead ? 'unread' : ''}`}>
                     <h4>{notification.title}</h4>
                     <p>{notification.message}</p>
-                    <div className="time">
+                    <div className="B2BPartner-driver-dashboard-with-tabs-time">
                       {new Date(notification.createdAt).toLocaleString()}
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="no-notifications">
+                <div className="B2BPartner-driver-dashboard-with-tabs-no-notifications">
                   <p>No notifications</p>
                 </div>
               )}
@@ -584,9 +584,9 @@ function B2BPartnerDriverDashboard() {
         )}
 
         {activeMainTab === "location" && (
-          <div className="location-section">
+          <div className="B2BPartner-driver-dashboard-with-tabs-location-section">
             <h3>Live Location Tracking</h3>
-            <div className="location-info">
+            <div className="B2BPartner-driver-dashboard-with-tabs-location-info">
               <p>
                 <strong>Status:</strong>{" "}
                 {isSharingLocation ? (
@@ -620,11 +620,11 @@ function B2BPartnerDriverDashboard() {
               )}
             </div>
 
-            <div className="location-map">
+            <div className="B2BPartner-driver-dashboard-with-tabs-location-map">
               {liveLocation ? (
                 <iframe
                   src={`https://www.openstreetmap.org/export/embed.html?bbox=${liveLocation.lng - 0.01},${liveLocation.lat - 0.01},${liveLocation.lng + 0.01},${liveLocation.lat + 0.01}&layer=mapnik&marker=${liveLocation.lat},${liveLocation.lng}`}
-                  className="live-map"
+                  className="B2BPartner-driver-dashboard-with-tabs-live-map"
                   width="100%"
                   height="400"
                   frameBorder="0"
@@ -632,7 +632,7 @@ function B2BPartnerDriverDashboard() {
                   title="Driver Live Location"
                 />
               ) : (
-                <div className="no-location">
+                <div className="B2BPartner-driver-dashboard-with-tabs-no-location">
                   <p>No location data available</p>
                 </div>
               )}
