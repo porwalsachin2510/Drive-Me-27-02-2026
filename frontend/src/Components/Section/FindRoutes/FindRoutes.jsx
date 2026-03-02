@@ -66,34 +66,33 @@ export default function FindRoutes() {
 
   if (loading) {
     return (
-      <div className="find-routes-section">
+      <div className="fr-find-routes-section">
         <h2>My Active Routes</h2>
-        <div className="loading">Loading routes...</div>
+        <div className="fr-loading">Loading routes...</div>
       </div>
     );
   }
 
   return (
-    <div className="find-routes-section">
+    <div className="fr-find-routes-section">
       <h2>My Active Routes</h2>
-      <p className="routes-count">{activeCount} Active</p>
+      <p className="fr-routes-count">{activeCount} Active</p>
 
-      {/* Search and Filter */}
-      <div className="routes-controls">
-        <div className="search-box">
+      <div className="fr-routes-controls">
+        <div className="fr-search-box">
           <input
             type="text"
             placeholder="Search routes..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="search-input"
+            className="fr-search-input"
           />
         </div>
-        <div className="filter-box">
+        <div className="fr-filter-box">
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="filter-select"
+            className="fr-filter-select"
           >
             <option value="all">All Routes</option>
             <option value="active">My Routes</option>
@@ -102,16 +101,15 @@ export default function FindRoutes() {
         </div>
       </div>
 
-      {/* Routes List */}
-      <div className="routes-list">
+      <div className="fr-routes-list">
         {filteredRoutes.length === 0 ? (
-          <div className="empty-state">
-            <p className="empty-title">
+          <div className="fr-empty-state">
+            <p className="fr-empty-title">
               {searchQuery || filterStatus !== "all" 
                 ? "No routes found matching your criteria." 
                 : "No partner routes available yet."}
             </p>
-            <p className="empty-subtitle">
+            <p className="fr-empty-subtitle">
               {searchQuery || filterStatus !== "all"
                 ? "Try adjusting your search or filter."
                 : "Check back later for available routes!"}
@@ -119,84 +117,84 @@ export default function FindRoutes() {
           </div>
         ) : (
           filteredRoutes.map((route) => (
-            <div key={route._id} className="route-card">
-              <div className="route-header">
-                <div className="route-info">
+            <div key={route._id} className="fr-route-card">
+              <div className="fr-route-header">
+                <div className="fr-route-info">
                   <h3>{route.name}</h3>
-                  <span className={`route-status ${route.isMember ? 'active' : 'available'}`}>
+                  <span className={`fr-route-status ${route.isMember ? 'fr-active' : 'fr-available'}`}>
                     {route.isMember ? 'Active' : 'Available'}
                   </span>
                 </div>
-                <div className="route-price">
+                <div className="fr-route-price">
                   KWD {route.price || 0}
                 </div>
               </div>
 
-              <div className="route-details">
-                <div className="route-path">
-                  <div className="route-point">
+              <div className="fr-route-details">
+                <div className="fr-route-path">
+                  <div className="fr-route-point">
                     <strong>From:</strong> {route.startPoint}
                   </div>
-                  <div className="route-arrow">&#8594;</div>
-                  <div className="route-point">
+                  <div className="fr-route-arrow">&#8594;</div>
+                  <div className="fr-route-point">
                     <strong>To:</strong> {route.endPoint}
                   </div>
                 </div>
 
-                <div className="route-meta">
-                  <div className="meta-item">
-                    <span className="meta-label">Distance:</span>
-                    <span className="meta-value">{route.distance || 'Not available'}</span>
+                <div className="fr-route-meta">
+                  <div className="fr-meta-item">
+                    <span className="fr-meta-label">Distance:</span>
+                    <span className="fr-meta-value">{route.distance || 'Not available'}</span>
                   </div>
-                  <div className="meta-item">
-                    <span className="meta-label">Duration:</span>
-                    <span className="meta-value">{route.estimatedTime || 'Not available'}</span>
+                  <div className="fr-meta-item">
+                    <span className="fr-meta-label">Duration:</span>
+                    <span className="fr-meta-value">{route.estimatedTime || 'Not available'}</span>
                   </div>
-                  <div className="meta-item">
-                    <span className="meta-label">Partner:</span>
-                    <span className="meta-value">{route.partnerName || 'Unknown'}</span>
+                  <div className="fr-meta-item">
+                    <span className="fr-meta-label">Partner:</span>
+                    <span className="fr-meta-value">{route.partnerName || 'Unknown'}</span>
                   </div>
                 </div>
 
-                <div className="route-schedule">
-                  <div className="schedule-item">
-                    <span className="schedule-label">Departure:</span>
-                    <span className="schedule-time">{route.departureTime || 'Not set'}</span>
+                <div className="fr-route-schedule">
+                  <div className="fr-schedule-item">
+                    <span className="fr-schedule-label">Departure:</span>
+                    <span className="fr-schedule-time">{route.departureTime || 'Not set'}</span>
                   </div>
-                  <div className="schedule-item">
-                    <span className="schedule-label">Arrival:</span>
-                    <span className="schedule-time">{route.arrivalTime || 'Not set'}</span>
+                  <div className="fr-schedule-item">
+                    <span className="fr-schedule-label">Arrival:</span>
+                    <span className="fr-schedule-time">{route.arrivalTime || 'Not set'}</span>
                   </div>
                 </div>
 
                 {route.operatingDays && route.operatingDays.length > 0 && (
-                  <div className="route-days">
-                    <span className="days-label">Operating Days:</span>
-                    <div className="days-list">
+                  <div className="fr-route-days">
+                    <span className="fr-days-label">Operating Days:</span>
+                    <div className="fr-days-list">
                       {route.operatingDays.map((day, idx) => (
-                        <span key={idx} className="day-badge">{day}</span>
+                        <span key={idx} className="fr-day-badge">{day}</span>
                       ))}
                     </div>
                   </div>
                 )}
 
-                <div className="route-seats-info">
-                  <span className="seats-label">Available Seats:</span>
-                  <span className="seats-value">{route.availableSeats} / {route.totalSeats}</span>
+                <div className="fr-route-seats-info">
+                  <span className="fr-seats-label">Available Seats:</span>
+                  <span className="fr-seats-value">{route.availableSeats} / {route.totalSeats}</span>
                 </div>
               </div>
 
-              <div className="route-actions">
+              <div className="fr-route-actions">
                 {route.isMember ? (
                   <button
-                    className="leave-btn"
+                    className="fr-leave-btn"
                     onClick={() => handleLeaveRoute(route._id)}
                   >
                     Leave Route
                   </button>
                 ) : (
                   <button
-                    className="join-btn"
+                    className="fr-join-btn"
                     onClick={() => handleJoinRoute(route._id)}
                     disabled={route.availableSeats <= 0}
                   >

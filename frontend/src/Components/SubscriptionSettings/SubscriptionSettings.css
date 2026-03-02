@@ -1,4 +1,5 @@
-.subscription-settings-container {
+/* SubscriptionSettings - Prefixed with ss- */
+.ss-subscription-settings-container {
   max-width: 800px;
   margin: 0 auto;
   padding: 32px;
@@ -8,25 +9,25 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
-.settings-header {
+.ss-settings-header {
   text-align: center;
   margin-bottom: 32px;
 }
 
-.settings-header h2 {
+.ss-settings-header h2 {
   margin: 0 0 8px 0;
   font-size: 24px;
   font-weight: 600;
   color: #111827;
 }
 
-.settings-header p {
+.ss-settings-header p {
   margin: 0;
   color: #6b7280;
   font-size: 16px;
 }
 
-.error-message {
+.ss-error-message {
   background-color: #fef2f2;
   border: 1px solid #fecaca;
   color: #dc2626;
@@ -36,7 +37,7 @@
   font-size: 14px;
 }
 
-.success-message {
+.ss-success-message {
   background-color: #f0fdf4;
   border: 1px solid #bbf7d0;
   color: #16a34a;
@@ -46,38 +47,38 @@
   font-size: 14px;
 }
 
-.settings-section {
+.ss-settings-section {
   margin-bottom: 32px;
   padding-bottom: 24px;
   border-bottom: 1px solid #e5e7eb;
 }
 
-.settings-section:last-child {
+.ss-settings-section:last-child {
   border-bottom: none;
 }
 
-.settings-section h3 {
+.ss-settings-section h3 {
   margin: 0 0 20px 0;
   font-size: 18px;
   font-weight: 600;
   color: #111827;
 }
 
-.setting-item {
+.ss-setting-item {
   margin-bottom: 24px;
 }
 
-.setting-row {
+.ss-setting-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
 }
 
-.setting-row .setting-item {
+.ss-setting-row .ss-setting-item {
   margin-bottom: 0;
 }
 
-.setting-item label {
+.ss-setting-item label {
   display: block;
   margin-bottom: 8px;
   font-weight: 500;
@@ -85,7 +86,7 @@
   font-size: 14px;
 }
 
-.setting-item select {
+.ss-setting-item select {
   width: 100%;
   max-width: 300px;
   padding: 10px 14px;
@@ -103,26 +104,26 @@
   outline: none;
 }
 
-.setting-item select:focus {
+.ss-setting-item select:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.setting-item select:disabled {
+.ss-setting-item select:disabled {
   background-color: #f9fafb;
   color: #6b7280;
   cursor: not-allowed;
 }
 
-.setting-description {
+.ss-setting-description {
   margin: 8px 0 0 0;
   font-size: 13px;
   color: #6b7280;
   line-height: 1.4;
 }
 
-.checkbox-label {
+.ss-checkbox-label {
   display: flex;
   align-items: center;
   cursor: pointer;
@@ -132,7 +133,7 @@
   padding-left: 28px;
 }
 
-.checkbox-label input[type="checkbox"] {
+.ss-checkbox-label input[type="checkbox"] {
   position: absolute;
   opacity: 0;
   cursor: pointer;
@@ -140,7 +141,7 @@
   width: 0;
 }
 
-.checkmark {
+.ss-checkmark {
   position: absolute;
   top: 0;
   left: 0;
@@ -152,16 +153,16 @@
   transition: all 0.2s;
 }
 
-.checkbox-label:hover input ~ .checkmark {
+.ss-checkbox-label:hover input ~ .ss-checkmark {
   background-color: #e5e7eb;
 }
 
-.checkbox-label input:checked ~ .checkmark {
+.ss-checkbox-label input:checked ~ .ss-checkmark {
   background-color: #3b82f6;
   border-color: #3b82f6;
 }
 
-.checkmark:after {
+.ss-checkmark:after {
   content: "";
   position: absolute;
   display: none;
@@ -174,19 +175,19 @@
   transform: rotate(45deg);
 }
 
-.checkbox-label input:checked ~ .checkmark:after {
+.ss-checkbox-label input:checked ~ .ss-checkmark:after {
   display: block;
 }
 
-.settings-actions {
+.ss-settings-actions {
   display: flex;
   gap: 16px;
   justify-content: center;
   margin-top: 32px;
 }
 
-.save-btn,
-.cancel-btn {
+.ss-save-btn,
+.ss-cancel-btn {
   padding: 12px 24px;
   border-radius: 8px;
   font-weight: 500;
@@ -196,30 +197,30 @@
   border: none;
 }
 
-.save-btn {
+.ss-save-btn {
   background-color: #3b82f6;
   color: white;
 }
 
-.save-btn:hover:not(:disabled) {
+.ss-save-btn:hover:not(:disabled) {
   background-color: #2563eb;
 }
 
-.save-btn:disabled {
+.ss-save-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.cancel-btn {
+.ss-cancel-btn {
   background-color: #ef4444;
   color: white;
 }
 
-.cancel-btn:hover {
+.ss-cancel-btn:hover {
   background-color: #dc2626;
 }
 
-.cancel-overlay {
+.ss-cancel-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -232,7 +233,7 @@
   z-index: 1000;
 }
 
-.cancel-modal {
+.ss-cancel-modal {
   background: white;
   border-radius: 12px;
   width: 90%;
@@ -242,7 +243,7 @@
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
 }
 
-.cancel-header {
+.ss-cancel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -250,14 +251,14 @@
   border-bottom: 1px solid #e5e7eb;
 }
 
-.cancel-header h3 {
+.ss-cancel-header h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
   color: #111827;
 }
 
-.close-btn {
+.ss-close-btn {
   background: none;
   border: none;
   font-size: 24px;
@@ -268,37 +269,37 @@
   transition: all 0.2s;
 }
 
-.close-btn:hover {
+.ss-close-btn:hover {
   background-color: #f3f4f6;
   color: #111827;
 }
 
-.cancel-content {
+.ss-cancel-content {
   padding: 20px;
 }
 
-.cancel-warning {
+.ss-cancel-warning {
   color: #dc2626;
   font-weight: 500;
   margin-bottom: 16px;
 }
 
-.cancel-effects {
+.ss-cancel-effects {
   margin: 16px 0;
   padding-left: 20px;
   color: #374151;
 }
 
-.cancel-effects li {
+.ss-cancel-effects li {
   margin-bottom: 8px;
   font-size: 14px;
 }
 
-.form-group {
+.ss-form-group {
   margin: 20px 0;
 }
 
-.form-group label {
+.ss-form-group label {
   display: block;
   margin-bottom: 8px;
   font-weight: 500;
@@ -306,7 +307,7 @@
   font-size: 14px;
 }
 
-.form-group textarea {
+.ss-form-group textarea {
   width: 100%;
   padding: 12px 16px;
   border: 1px solid #d1d5db;
@@ -318,21 +319,21 @@
   min-height: 100px;
 }
 
-.form-group textarea:focus {
+.ss-form-group textarea:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.cancel-actions {
+.ss-cancel-actions {
   display: flex;
   gap: 12px;
   justify-content: flex-end;
   margin-top: 24px;
 }
 
-.keep-btn,
-.confirm-cancel-btn {
+.ss-keep-btn,
+.ss-confirm-cancel-btn {
   padding: 12px 24px;
   border-radius: 6px;
   font-weight: 500;
@@ -342,54 +343,54 @@
   border: none;
 }
 
-.keep-btn {
+.ss-keep-btn {
   background-color: #f3f4f6;
   color: #374151;
 }
 
-.keep-btn:hover {
+.ss-keep-btn:hover {
   background-color: #e5e7eb;
 }
 
-.confirm-cancel-btn {
+.ss-confirm-cancel-btn {
   background-color: #dc2626;
   color: white;
 }
 
-.confirm-cancel-btn:hover {
+.ss-confirm-cancel-btn:hover {
   background-color: #b91c1c;
 }
 
 @media (max-width: 640px) {
-  .subscription-settings-container {
+  .ss-subscription-settings-container {
     padding: 16px;
     margin: 16px;
   }
   
-  .setting-row {
+  .ss-setting-row {
     grid-template-columns: 1fr;
     gap: 16px;
   }
   
-  .settings-actions {
+  .ss-settings-actions {
     flex-direction: column;
   }
   
-  .save-btn,
-  .cancel-btn {
+  .ss-save-btn,
+  .ss-cancel-btn {
     width: 100%;
   }
   
-  .cancel-actions {
+  .ss-cancel-actions {
     flex-direction: column;
   }
   
-  .keep-btn,
-  .confirm-cancel-btn {
+  .ss-keep-btn,
+  .ss-confirm-cancel-btn {
     width: 100%;
   }
   
-  .cancel-modal {
+  .ss-cancel-modal {
     width: 95%;
     margin: 20px;
   }

@@ -598,9 +598,9 @@ const CommuterMyBookingsPage = () => {
   //   };
 
   return (
-    <div className="my-bookings-page">
-      <div className="bookings-container">
-        <div className="bookings-header">
+    <div className="cmbp-my-bookings-page">
+        <div className="cmbp-bookings-container">
+          <div className="cmbp-bookings-header">
           <h1>My Bookings</h1>
           <p>
             {userType === "CORPORATE_EMPLOYEE"
@@ -609,27 +609,27 @@ const CommuterMyBookingsPage = () => {
           </p>
         </div>
 
-        <div className="filter-section">
+        <div className="cmbp-filter-section">
           <button
-            className={`filter-btn ${filterStatus === "all" ? "active" : ""}`}
+            className={`cmbp-filter-btn ${filterStatus === "all" ? "cmbp-active" : ""}`}
             onClick={() => setFilterStatus("all")}
           >
             All Bookings
           </button>
           <button
-            className={`filter-btn ${filterStatus === "PENDING" ? "active" : ""}`}
+            className={`cmbp-filter-btn ${filterStatus === "PENDING" ? "cmbp-active" : ""}`}
             onClick={() => setFilterStatus("PENDING")}
           >
             Pending
           </button>
           <button
-            className={`filter-btn ${filterStatus === "CONFIRMED" ? "active" : ""}`}
+            className={`cmbp-filter-btn ${filterStatus === "CONFIRMED" ? "cmbp-active" : ""}`}
             onClick={() => setFilterStatus("CONFIRMED")}
           >
             Confirmed
           </button>
           <button
-            className={`filter-btn ${filterStatus === "COMPLETED" ? "active" : ""}`}
+            className={`cmbp-filter-btn ${filterStatus === "COMPLETED" ? "cmbp-active" : ""}`}
             onClick={() => setFilterStatus("COMPLETED")}
           >
             Completed
@@ -637,28 +637,28 @@ const CommuterMyBookingsPage = () => {
         </div>
 
         {loading ? (
-          <div className="loading-state">
+          <div className="cmbp-loading-state">
             <p>Loading your bookings...</p>
           </div>
         ) : passengerBookings.length === 0 ? (
-          <div className="empty-state">
+          <div className="cmbp-empty-state">
             <p>No bookings found</p>
-            <p className="empty-subtitle">
+            <p className="cmbp-empty-subtitle">
               {userType === "CORPORATE_EMPLOYEE"
                 ? "Your company has not assigned any rides yet"
                 : "Start booking a ride to see them here"}
             </p>
           </div>
         ) : (
-          <div className="bookings-grid">
+          <div className="cmbp-bookings-grid">
             {passengerBookings.map((booking) => {
               const statusConfig = getStatusBadge(booking.bookingStatus);
 
               return (
-                <div key={booking._id} className="booking-card">
-                  <div className="booking-card-header">
-                    <div className="booking-meta">
-                      <h3 className="booking-title">
+                <div key={booking._id} className="cmbp-booking-card">
+                  <div className="cmbp-booking-card-header">
+                    <div className="cmbp-booking-meta">
+                      <h3 className="cmbp-booking-title">
                         {(() => {
                           const titleRoute =
                             booking.type === "CORPORATE"
@@ -668,30 +668,30 @@ const CommuterMyBookingsPage = () => {
                           return titleRoute;
                         })()}
                       </h3>
-                      <p className="booking-date">
+                      <p className="cmbp-booking-date">
                         📅 {formatDate(booking.travelDate || booking.createdAt)}
                       </p>
                     </div>
                     <span
-                      className="status-badge"
+                      className="cmbp-status-badge"
                       style={{ backgroundColor: statusConfig.color }}
                     >
                       {statusConfig.label}
                     </span>
                   </div>
 
-                  <div className="booking-details">
+                  <div className="cmbp-booking-details">
                     {booking.type === "B2C" ? (
                       <>
-                        <div className="detail-item">
-                          <span className="detail-label">Driver</span>
-                          <span className="detail-value">
+                        <div className="cmbp-detail-item">
+                          <span className="cmbp-detail-label">Driver</span>
+                          <span className="cmbp-detail-value">
                             {booking.b2cPartnerId?.fullName || "N/A"}
                           </span>
                         </div>
-                        <div className="detail-item">
-                          <span className="detail-label">Driver Status</span>
-                          <span className="detail-value">
+                        <div className="cmbp-detail-item">
+                          <span className="cmbp-detail-label">Driver Status</span>
+                          <span className="cmbp-detail-value">
                             {(() => {
                               // For B2C bookings, use assignedDriverId as driverId
                               const driverId = booking.assignedDriverId || 
@@ -716,48 +716,48 @@ const CommuterMyBookingsPage = () => {
                             })()}
                           </span>
                         </div>
-                        <div className="detail-item">
-                          <span className="detail-label">Vehicle</span>
-                          <span className="detail-value">
+                        <div className="cmbp-detail-item">
+                          <span className="cmbp-detail-label">Vehicle</span>
+                          <span className="cmbp-detail-value">
                             {booking.b2cPartnerId?.vehicleModel || "N/A"}
                           </span>
                         </div>
-                        <div className="detail-item">
-                          <span className="detail-label">Seats</span>
-                          <span className="detail-value">
+                        <div className="cmbp-detail-item">
+                          <span className="cmbp-detail-label">Seats</span>
+                          <span className="cmbp-detail-value">
                             {booking.numberOfSeats}
                           </span>
                         </div>
-                        <div className="detail-item">
-                          <span className="detail-label">Amount</span>
-                          <span className="detail-value">
+                        <div className="cmbp-detail-item">
+                          <span className="cmbp-detail-label">Amount</span>
+                          <span className="cmbp-detail-value">
                             AED {booking.paymentAmount?.toFixed(2) || "N/A"}
                           </span>
                         </div>
-                        <div className="detail-item">
-                          <span className="detail-label">Payment Method</span>
-                          <span className="detail-value">
+                        <div className="cmbp-detail-item">
+                          <span className="cmbp-detail-label">Payment Method</span>
+                          <span className="cmbp-detail-value">
                             {booking.paymentMethod || "N/A"}
                           </span>
                         </div>
                       </>
                     ) : (
                       <>
-                        <div className="detail-item">
-                          <span className="detail-label">Company</span>
-                          <span className="detail-value">
+                        <div className="cmbp-detail-item">
+                          <span className="cmbp-detail-label">Company</span>
+                          <span className="cmbp-detail-value">
                             {booking.corporateOwnerId?.companyName || "N/A"}
                           </span>
                         </div>
-                        <div className="detail-item">
-                          <span className="detail-label">Driver</span>
-                          <span className="detail-value">
+                        <div className="cmbp-detail-item">
+                          <span className="cmbp-detail-label">Driver</span>
+                          <span className="cmbp-detail-value">
                             {booking.driverName || "N/A"}
                           </span>
                         </div>
-                        <div className="detail-item">
-                          <span className="detail-label">Driver Status</span>
-                          <span className="detail-value">
+                        <div className="cmbp-detail-item">
+                          <span className="cmbp-detail-label">Driver Status</span>
+                          <span className="cmbp-detail-value">
                             {booking.driverId ? (
                               isDriverOnline(booking.driverId) ? (
                                 <span style={{ color: "#28a745" }}>
@@ -788,9 +788,9 @@ const CommuterMyBookingsPage = () => {
                             )}
                           </span>
                         </div>
-                        <div className="detail-item">
-                          <span className="detail-label">Route</span>
-                          <span className="detail-value">
+                        <div className="cmbp-detail-item">
+                          <span className="cmbp-detail-label">Route</span>
+                          <span className="cmbp-detail-value">
                             {(() => {
                               const route = `${booking.routeId?.fromLocation || booking.pickupLocation} → ${booking.routeId?.toLocation || booking.dropoffLocation}`;
 
@@ -798,23 +798,23 @@ const CommuterMyBookingsPage = () => {
                             })()}
                           </span>
                         </div>
-                        <div className="detail-item">
-                          <span className="detail-label">Departure</span>
-                          <span className="detail-value">
+                        <div className="cmbp-detail-item">
+                          <span className="cmbp-detail-label">Departure</span>
+                          <span className="cmbp-detail-value">
                             {booking.routeId?.departureTime ||
                               booking.travelPath?.[0]?.time ||
                               "N/A"}
                           </span>
                         </div>
-                        <div className="detail-item">
-                          <span className="detail-label">Seat</span>
-                          <span className="detail-value">
+                        <div className="cmbp-detail-item">
+                          <span className="cmbp-detail-label">Seat</span>
+                          <span className="cmbp-detail-value">
                             {booking.numberOfSeats || 1}
                           </span>
                         </div>
-                        <div className="detail-item">
-                          <span className="detail-label">Cost</span>
-                          <span className="detail-value">
+                        <div className="cmbp-detail-item">
+                          <span className="cmbp-detail-label">Cost</span>
+                          <span className="cmbp-detail-value">
                             ₹{booking.price || "N/A"}
                           </span>
                         </div>
@@ -823,7 +823,7 @@ const CommuterMyBookingsPage = () => {
                   </div>
 
                   {booking.type === "B2C" && booking.b2cPartnerId && (
-                    <div className="partner-info">
+                    <div className="cmbp-partner-info">
                       <p>
                         <strong>Partner:</strong>{" "}
                         {booking.b2cPartnerId?.fullName}
@@ -832,7 +832,7 @@ const CommuterMyBookingsPage = () => {
                   )}
 
                   {booking.type === "CORPORATE" && (
-                    <div className="partner-info">
+                    <div className="cmbp-partner-info">
                       <p>
                         <strong>Company:</strong>{" "}
                         {booking.companyName || "Corporate Partner"}
@@ -859,7 +859,7 @@ const CommuterMyBookingsPage = () => {
                         : booking.driverId;
                     
                     return getDriverLocation(driverId) && (
-                      <div className="driver-info">
+                      <div className="cmbp-driver-info">
                         <p>
                           <strong>Driver:</strong> {booking.driverName}
                         </p>
@@ -896,10 +896,10 @@ const CommuterMyBookingsPage = () => {
                     );
                   })()}
 
-                  <div className="booking-actions">
+                  <div className="cmbp-booking-actions">
                     {["CONFIRMED", "ACCEPTED", "ACTIVE", "IN_PROGRESS"].includes(booking.bookingStatus) && (
                       <button
-                        className="btn-track"
+                        className="cmbp-btn-track"
                         onClick={() => handleTrackingClick(booking)}
                         disabled={booking.bookingStatus === "COMPLETED"}
                       >
@@ -908,12 +908,12 @@ const CommuterMyBookingsPage = () => {
                     )}
                     {booking.bookingStatus === "PENDING" &&
                       booking.type === "B2C" && (
-                        <button className="btn-cancel">Cancel Booking</button>
+                        <button className="cmbp-btn-cancel">Cancel Booking</button>
                       )}
                     {(booking.bookingStatus === "CONFIRMED" || booking.bookingStatus === "ACTIVE" || booking.bookingStatus === "ACCEPTED") &&
                       booking.type === "B2C" && (
                         <button
-                          className="btn-noshow"
+                          className="cmbp-btn-noshow"
                           onClick={() => handleNoShowClick(booking)}
                         >
                           Mark No-Show
@@ -966,7 +966,7 @@ const CommuterMyBookingsPage = () => {
 
       {showTracking && selectedBooking && (
         <div
-          className="tracking-modal-overlay"
+          className="cmbp-tracking-modal-overlay"
           style={{
             position: "fixed",
             top: 0,
@@ -981,7 +981,7 @@ const CommuterMyBookingsPage = () => {
           }}
         >
           <div
-            className="tracking-modal"
+            className="cmbp-tracking-modal"
             style={{
               backgroundColor: "white",
               borderRadius: "12px",
@@ -993,7 +993,7 @@ const CommuterMyBookingsPage = () => {
             }}
           >
             <div
-              className="tracking-header"
+              className="cmbp-tracking-header"
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -1015,7 +1015,7 @@ const CommuterMyBookingsPage = () => {
               </button>
             </div>
 
-            <div className="tracking-info" style={{ marginBottom: "20px" }}>
+            <div className="cmbp-tracking-info" style={{ marginBottom: "20px" }}>
               <p>
                 <strong>Route:</strong>{" "}
                 {(() => {

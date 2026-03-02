@@ -1,5 +1,5 @@
-/* Commuter My Bookings Page - Professional Clean Layout */
-.my-bookings-page {
+/* Commuter My Bookings Page - Prefixed with cmbp- */
+.cmbp-my-bookings-page {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -8,7 +8,7 @@
   overflow-x: hidden;
 }
 
-.bookings-container {
+.cmbp-bookings-container {
   flex: 1;
   max-width: 1100px;
   margin: 0 auto;
@@ -16,32 +16,32 @@
   padding: 32px 20px;
 }
 
-.bookings-header {
+.cmbp-bookings-header {
   margin-bottom: 28px;
 }
 
-.bookings-header h1 {
+.cmbp-bookings-header h1 {
   font-size: 28px;
   font-weight: 700;
   margin: 0 0 6px 0;
   color: #1a202c;
 }
 
-.bookings-header p {
+.cmbp-bookings-header p {
   font-size: 14px;
   color: #718096;
   margin: 0;
 }
 
 /* Filter Buttons */
-.filter-section {
+.cmbp-filter-section {
   display: flex;
   gap: 8px;
   margin-bottom: 24px;
   flex-wrap: wrap;
 }
 
-.filter-btn {
+.cmbp-filter-btn {
   padding: 8px 18px;
   border: 1px solid #e2e8f0;
   background-color: #ffffff;
@@ -53,20 +53,20 @@
   transition: all 0.2s ease;
 }
 
-.filter-btn:hover {
+.cmbp-filter-btn:hover {
   border-color: #3182ce;
   color: #3182ce;
 }
 
-.filter-btn.active {
+.cmbp-filter-btn.cmbp-active {
   background: #3182ce;
   color: white;
   border-color: #3182ce;
 }
 
 /* Loading / Empty States */
-.loading-state,
-.empty-state {
+.cmbp-loading-state,
+.cmbp-empty-state {
   text-align: center;
   padding: 48px 20px;
   background: white;
@@ -74,28 +74,28 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
-.loading-state p,
-.empty-state p {
+.cmbp-loading-state p,
+.cmbp-empty-state p {
   font-size: 15px;
   color: #718096;
   margin: 0;
 }
 
-.empty-subtitle {
+.cmbp-empty-subtitle {
   font-size: 13px;
   color: #a0aec0;
   margin-top: 6px;
 }
 
 /* Bookings Grid */
-.bookings-grid {
+.cmbp-bookings-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: 16px;
 }
 
 /* Booking Card */
-.booking-card {
+.cmbp-booking-card {
   background-color: #ffffff;
   border-radius: 12px;
   padding: 20px;
@@ -108,13 +108,13 @@
   flex-direction: column;
 }
 
-.booking-card:hover {
+.cmbp-booking-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   border-color: #cbd5e0;
 }
 
 /* Card Header */
-.booking-card-header {
+.cmbp-booking-card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -122,12 +122,12 @@
   gap: 10px;
 }
 
-.booking-meta {
+.cmbp-booking-meta {
   flex: 1;
   min-width: 0;
 }
 
-.booking-meta h3, .booking-title {
+.cmbp-booking-meta h3, .cmbp-booking-title {
   font-size: 15px;
   font-weight: 600;
   margin: 0 0 6px 0;
@@ -137,13 +137,13 @@
   line-height: 1.3;
 }
 
-.booking-date {
+.cmbp-booking-date {
   font-size: 13px;
   color: #718096;
   margin: 0;
 }
 
-.status-badge {
+.cmbp-status-badge {
   padding: 4px 12px;
   border-radius: 16px;
   color: white;
@@ -154,7 +154,7 @@
 }
 
 /* Booking Details */
-.booking-details {
+.cmbp-booking-details {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
@@ -164,7 +164,7 @@
   border-bottom: 1px solid #edf2f7;
 }
 
-.detail-item {
+.cmbp-detail-item {
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -174,7 +174,7 @@
   min-width: 0;
 }
 
-.detail-label {
+.cmbp-detail-label {
   font-size: 11px;
   color: #a0aec0;
   font-weight: 600;
@@ -184,7 +184,7 @@
   flex-shrink: 0;
 }
 
-.detail-value {
+.cmbp-detail-value {
   font-size: 13px;
   font-weight: 600;
   color: #2d3748;
@@ -194,7 +194,7 @@
 }
 
 /* Partner / Company Info */
-.partner-info {
+.cmbp-partner-info {
   background: #f7fafc;
   padding: 10px 12px;
   border-radius: 8px;
@@ -205,17 +205,17 @@
   border: 1px solid #edf2f7;
 }
 
-.partner-info p {
+.cmbp-partner-info p {
   margin: 3px 0;
   color: #4a5568;
 }
 
-.partner-info strong {
+.cmbp-partner-info strong {
   color: #2d3748;
 }
 
 /* Driver Info */
-.driver-info {
+.cmbp-driver-info {
   background: #f7fafc;
   padding: 10px 12px;
   border-radius: 8px;
@@ -224,24 +224,24 @@
   border: 1px solid #edf2f7;
 }
 
-.driver-info p {
+.cmbp-driver-info p {
   margin: 3px 0;
   color: #4a5568;
 }
 
-.driver-info strong {
+.cmbp-driver-info strong {
   color: #2d3748;
 }
 
 /* Action Buttons */
-.booking-actions {
+.cmbp-booking-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   margin-top: auto;
 }
 
-.btn-cancel {
+.cmbp-btn-cancel {
   flex: 1;
   padding: 8px 12px;
   border: 1px solid #fc8181;
@@ -256,11 +256,11 @@
   text-align: center;
 }
 
-.btn-cancel:hover {
+.cmbp-btn-cancel:hover {
   background: #fff5f5;
 }
 
-.btn-track {
+.cmbp-btn-track {
   flex: 1;
   padding: 8px 12px;
   border: none;
@@ -275,11 +275,11 @@
   text-align: center;
 }
 
-.btn-track:hover {
+.cmbp-btn-track:hover {
   background: #2c5282;
 }
 
-.btn-noshow {
+.cmbp-btn-noshow {
   flex: 1;
   padding: 8px 12px;
   border: 1px solid #ed8936;
@@ -294,12 +294,12 @@
   text-align: center;
 }
 
-.btn-noshow:hover {
+.cmbp-btn-noshow:hover {
   background: #fffaf0;
 }
 
 /* ============ TRACKING MODAL ============ */
-.tracking-modal-overlay {
+.cmbp-tracking-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -313,7 +313,7 @@
   z-index: 9999;
 }
 
-.tracking-modal {
+.cmbp-tracking-modal {
   background: white;
   border-radius: 14px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
@@ -323,7 +323,7 @@
   overflow: auto;
 }
 
-.tracking-header {
+.cmbp-tracking-header {
   background: #2b6cb0;
   color: white;
   padding: 16px 20px;
@@ -333,13 +333,13 @@
   border-radius: 14px 14px 0 0;
 }
 
-.tracking-header h3 {
+.cmbp-tracking-header h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
 }
 
-.tracking-header button {
+.cmbp-tracking-header button {
   background: rgba(255, 255, 255, 0.2);
   border: none;
   color: white;
@@ -353,37 +353,37 @@
   justify-content: center;
 }
 
-.tracking-header button:hover {
+.cmbp-tracking-header button:hover {
   background: rgba(255, 255, 255, 0.3);
 }
 
-.tracking-info {
+.cmbp-tracking-info {
   padding: 16px 20px;
   background: #f7fafc;
   border-bottom: 1px solid #e2e8f0;
 }
 
-.tracking-info p {
+.cmbp-tracking-info p {
   margin: 6px 0;
   font-size: 14px;
   color: #4a5568;
 }
 
-.tracking-info strong {
+.cmbp-tracking-info strong {
   color: #1a202c;
 }
 
-.map-container {
+.cmbp-map-container {
   position: relative;
   overflow: hidden;
 }
 
-.map-container iframe {
+.cmbp-map-container iframe {
   width: 100%;
   border: none;
 }
 
-.tracking-actions {
+.cmbp-tracking-actions {
   padding: 16px 20px;
   background: #f7fafc;
   border-radius: 0 0 14px 14px;
@@ -392,7 +392,7 @@
   justify-content: flex-end;
 }
 
-.tracking-actions button {
+.cmbp-tracking-actions button {
   background: #2b6cb0;
   color: white;
   border: none;
@@ -404,12 +404,63 @@
   transition: all 0.2s;
 }
 
-.tracking-actions button:hover {
+.cmbp-tracking-actions button:hover {
   background: #2c5282;
 }
 
+/* No-Show Modal */
+.cmbp-noshow-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.cmbp-noshow-modal {
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  max-width: 500px;
+  width: 92vw;
+  max-height: 90vh;
+  overflow: auto;
+  padding: 24px;
+}
+
+.cmbp-noshow-modal h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a202c;
+}
+
+.cmbp-noshow-modal select,
+.cmbp-noshow-modal textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+}
+
+.cmbp-noshow-modal .cmbp-noshow-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
 /* Driver Status Badge */
-.driver-status-badge {
+.cmbp-driver-status-badge {
   position: absolute;
   top: 10px;
   left: 50%;
@@ -425,100 +476,35 @@
   z-index: 10;
 }
 
-.route-line {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #3182ce 0%, #48bb78 50%, #ed8936 100%);
-  z-index: 999;
-}
-
-.location-marker {
-  position: absolute;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  color: white;
-  font-weight: bold;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-  z-index: 998;
-}
-
-.pickup-marker {
-  background: #48bb78;
-  border: 2px solid white;
-}
-
-.dropoff-marker {
-  background: #e53e3e;
-  border: 2px solid white;
-}
-
-/* Status indicators */
-.driver-online {
-  color: #38a169;
-  background: rgba(72, 187, 120, 0.1);
-  padding: 2px 8px;
-  border-radius: 12px;
-}
-
-.driver-offline {
-  color: #d69e2e;
-  background: rgba(237, 137, 54, 0.1);
-  padding: 2px 8px;
-  border-radius: 12px;
-}
-
-.status-very-close {
-  background: #c6f6d5;
-  color: #276749;
-}
-
-.status-on-way {
-  background: #fefcbf;
-  color: #975a16;
-}
-
-.status-far {
-  background: #fed7d7;
-  color: #9b2c2c;
-}
-
 /* ============ RESPONSIVE ============ */
 @media (max-width: 768px) {
-  .bookings-container {
+  .cmbp-bookings-container {
     padding: 16px 12px;
   }
 
-  .bookings-header h1 {
+  .cmbp-bookings-header h1 {
     font-size: 22px;
   }
 
-  .bookings-grid {
+  .cmbp-bookings-grid {
     grid-template-columns: 1fr;
   }
 
-  .detail-item {
+  .cmbp-detail-item {
     flex-direction: row;
     justify-content: space-between;
   }
 
-  .tracking-modal {
+  .cmbp-tracking-modal {
     max-width: 96vw;
     width: 96vw;
   }
   
-  .filter-section {
+  .cmbp-filter-section {
     gap: 6px;
   }
   
-  .filter-btn {
+  .cmbp-filter-btn {
     padding: 6px 14px;
     font-size: 12px;
   }
