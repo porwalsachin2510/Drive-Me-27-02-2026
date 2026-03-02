@@ -1,4 +1,6 @@
 import B2CPartnerTrip from "../models/B2CPartnerTrip.js";
+import Trip from "../models/Trip.js";
+import User from "../models/User.js";
 import {
     updateTripLocation,
     startTrip as startTripService,
@@ -182,15 +184,34 @@ export const getDriverLocation = async (req, res) => {
     try {
         const { driverId } = req.params;
 
-        // Find the active trip for the driver to get latest location
-        const trip = await B2CPartnerTrip.findOne({
+        // Resolve actual driver model ID - driverId param could be userId or drivers._id
+        let actualDriverId = driverId
+        const driverUser = await User.findById(driverId)
+        if (driverUser && driverUser.driverId) {
+            actualDriverId = driverUser.driverId.toString()
+        }
+
+        // Find the active trip for the driver in B2CPartnerTrip
+        let trip = await B2CPartnerTrip.findOne({
             $or: [
                 { driverId: driverId },
+                { driverId: actualDriverId },
                 { 'assignedDriver': driverId },
                 { b2cPartnerId: driverId }
             ],
             status: { $in: ['In Progress', 'IN_PROGRESS', 'Scheduled', 'SCHEDULED'] }
         }).select('currentLocation locationHistory status driverId routeId');
+
+        // If not found in B2CPartnerTrip, check Trip model (B2B/Corporate trips)
+        if (!trip) {
+            trip = await Trip.findOne({
+                $or: [
+                    { driverId: driverId },
+                    { driverId: actualDriverId }
+                ],
+                status: { $in: ['IN_PROGRESS', 'SCHEDULED'] }
+            }).select('currentLocation driverLocation status driverId routeId');
+        }
 
         if (!trip) {
             return res.json({
@@ -208,7 +229,7 @@ export const getDriverLocation = async (req, res) => {
             data: {
                 driverId,
                 tripId: trip._id,
-                location: trip.currentLocation || null,
+                location: trip.currentLocation || trip.driverLocation || null,
                 locationHistory: (trip.locationHistory || []).slice(-10),
                 tripStatus: trip.status
             }

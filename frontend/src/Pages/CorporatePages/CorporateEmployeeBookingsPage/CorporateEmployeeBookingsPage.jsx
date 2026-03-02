@@ -28,6 +28,8 @@ const CorporateEmployeeBookingsPage = () => {
   const getStatusBadge = (status) => {
     const statusConfig = {
       CONFIRMED: { color: "#28a745", label: "Confirmed" },
+      SCHEDULED: { color: "#007bff", label: "Scheduled" },
+      IN_PROGRESS: { color: "#fd7e14", label: "In Progress" },
       COMPLETED: { color: "#17a2b8", label: "Completed" },
       CANCELLED: { color: "#dc3545", label: "Cancelled" },
     };
@@ -122,6 +124,8 @@ const CorporateEmployeeBookingsPage = () => {
             >
               <option value="all">All Bookings</option>
               <option value="CONFIRMED">Confirmed</option>
+              <option value="SCHEDULED">Scheduled</option>
+              <option value="IN_PROGRESS">In Progress</option>
               <option value="COMPLETED">Completed</option>
               <option value="CANCELLED">Cancelled</option>
             </select>
@@ -221,16 +225,22 @@ const CorporateEmployeeBookingsPage = () => {
                             <span className="meta-icon">🕐</span>
                             <span>{booking.startTime || booking.pickupTime || formatTime(booking.travelDate || booking.tripDate)}</span>
                           </div>
-                          {(booking.vehicleModel || booking.vehicle?.model) && (
+                          {(booking.vehicleModel || booking.vehiclePlate || booking.vehicle?.model || booking.vehicle?.vehicleName) && (
                             <div className="meta-item">
                               <span className="meta-icon">🚌</span>
-                              <span>{booking.vehicleModel || booking.vehicle?.model}</span>
+                              <span>{booking.vehicleModel || booking.vehicle?.vehicleName || booking.vehicle?.model}{booking.vehiclePlate ? ` (${booking.vehiclePlate})` : booking.vehicle?.registrationNumber ? ` (${booking.vehicle.registrationNumber})` : ""}</span>
                             </div>
                           )}
-                          {(booking.driverName || booking.driver?.fullName) && (
+                          {(booking.driverName || booking.driver?.name || booking.driver?.fullName) && (
                             <div className="meta-item">
                               <span className="meta-icon">🧑‍✈️</span>
-                              <span>{booking.driverName || booking.driver?.fullName}</span>
+                              <span>{booking.driverName || booking.driver?.name || booking.driver?.fullName}</span>
+                            </div>
+                          )}
+                          {booking.tripType && (
+                            <div className="meta-item">
+                              <span className="meta-icon">🔄</span>
+                              <span>{booking.tripType === "ROUND_TRIP" ? "Round Trip" : "One Way"}{booking.direction ? ` - ${booking.direction}` : ""}</span>
                             </div>
                           )}
                           {booking.tripStatus && (

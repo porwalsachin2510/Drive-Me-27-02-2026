@@ -12,6 +12,9 @@ import "./B2BPartnerDriverDashboard.css";
 function B2BPartnerDriverDashboard() {
   const { user } = useSelector((state) => state.auth);
   const socket = useSocket();
+  
+  // Use driverId from drivers collection if available, fallback to user._id
+  const effectiveDriverId = user?.driverId || user?._id;
 
   const [bookings, setBookings] = useState([]);
   const [liveLocation, setLiveLocation] = useState(null);
@@ -76,17 +79,22 @@ function B2BPartnerDriverDashboard() {
           const location = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
-            driverId: user._id,
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            driverId: effectiveDriverId,
+            userId: user._id,
             timestamp: new Date().toISOString(),
             driverType: "B2B_PARTNER",
+            tripId: activeTrip?._id || null,
           };
 
           if (socket && socket.socket) {
+            // Emit both event formats for compatibility
             socket.socket.emit("update-location", location);
+            socket.socket.emit("driver-location-update", location);
           }
 
           setLiveLocation(location);
-          console.log("📍 Location updated:", location);
         },
         (error) => {
           console.error("Error getting location:", error);
@@ -98,7 +106,7 @@ function B2BPartnerDriverDashboard() {
         },
       );
     }
-  }, [socket, user._id]);
+  }, [socket, user._id, effectiveDriverId, activeTrip]);
 
   const startAutomaticLocationSharing = useCallback(() => {
     if (isSharingLocation) return;
@@ -115,9 +123,13 @@ function B2BPartnerDriverDashboard() {
     }, 5000);
 
     if (socket && socket.socket) {
-      socket.socket.emit("join-driver-room", user._id);
+      socket.socket.emit("join-driver-room", effectiveDriverId);
+      // Also join with user._id for compatibility
+      if (effectiveDriverId !== user._id) {
+        socket.socket.emit("join-driver-room", user._id);
+      }
     }
-  }, [isSharingLocation, socket, user._id, updateLocation]);
+  }, [isSharingLocation, socket, user._id, effectiveDriverId, updateLocation]);
 
   const stopAutomaticLocationSharing = useCallback(() => {
     if (!isSharingLocation) return;
@@ -344,7 +356,7 @@ function B2BPartnerDriverDashboard() {
       <div className="dashboard-header">
         <h1>B2B Partner Driver Dashboard</h1>
         <div className="driver-info">
-          <span>Welcome, {user?.name}</span>
+          <span>Welcome, {user?.fullName || user?.name}</span>
           <div
             className={`location-status ${isSharingLocation ? "active" : ""}`}
           >

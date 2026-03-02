@@ -12,6 +12,9 @@ import "./CorporateDriverDashboard.css";
 export default function CorporateDriverDashboard() {
   const { user } = useSelector((state) => state.auth);
   const socket = useSocket();
+  
+  // Use driverId from drivers collection if available, fallback to user._id
+  const effectiveDriverId = user?.driverId || user?._id;
 
   const [bookings, setBookings] = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -75,17 +78,21 @@ export default function CorporateDriverDashboard() {
           const location = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
-            driverId: user._id,
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            driverId: effectiveDriverId,
+            userId: user._id,
             timestamp: new Date().toISOString(),
             driverType: "CORPORATE",
+            tripId: activeTrip?._id || null,
           };
 
           if (socket && socket.socket) {
             socket.socket.emit("update-location", location);
+            socket.socket.emit("driver-location-update", location);
           }
 
           setLiveLocation(location);
-          console.log("📍 Location updated:", location);
         },
         (error) => {
           console.error("Error getting location:", error);
@@ -97,7 +104,7 @@ export default function CorporateDriverDashboard() {
         },
       );
     }
-  }, [socket, user._id]);
+  }, [socket, user._id, effectiveDriverId, activeTrip]);
 
   const startAutomaticLocationSharing = useCallback(() => {
     if (isSharingLocation) return;
@@ -112,9 +119,12 @@ export default function CorporateDriverDashboard() {
     }, 5000);
 
     if (socket && socket.socket) {
-      socket.socket.emit("join-driver-room", user._id);
+      socket.socket.emit("join-driver-room", effectiveDriverId);
+      if (effectiveDriverId !== user._id) {
+        socket.socket.emit("join-driver-room", user._id);
+      }
     }
-  }, [isSharingLocation, socket, user._id, updateLocation]);
+  }, [isSharingLocation, socket, user._id, effectiveDriverId, updateLocation]);
 
   const stopAutomaticLocationSharing = useCallback(() => {
     if (!isSharingLocation) return;

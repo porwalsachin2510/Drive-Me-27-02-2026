@@ -897,20 +897,13 @@ const CommuterMyBookingsPage = () => {
                   })()}
 
                   <div className="booking-actions">
-                    {booking.bookingStatus === "CONFIRMED" && (
+                    {["CONFIRMED", "ACCEPTED", "ACTIVE", "IN_PROGRESS"].includes(booking.bookingStatus) && (
                       <button
                         className="btn-track"
                         onClick={() => handleTrackingClick(booking)}
+                        disabled={booking.bookingStatus === "COMPLETED"}
                       >
-                        🗺️ Track Driver
-                      </button>
-                    )}
-                    {booking.bookingStatus === "IN_PROGRESS" && (
-                      <button
-                        className="btn-track"
-                        onClick={() => handleTrackingClick(booking)}
-                      >
-                        🗺️ Track Driver
+                        {booking.bookingStatus === "IN_PROGRESS" ? "Live Tracking" : "Track Driver"}
                       </button>
                     )}
                     {booking.bookingStatus === "PENDING" &&

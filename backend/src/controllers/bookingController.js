@@ -1526,8 +1526,8 @@ export const getCorporateOwnerBookings = async (req, res) => {
     
     // Get all trips for this corporate
     const trips = await Trip.find(tripQuery)
-      .populate("driverId", "fullName whatsappNumber email")
-      .populate("vehicleId", "model licensePlate")
+      .populate("driverId", "name email phone")
+      .populate("vehicleId", "model licensePlate vehicleName registrationNumber")
       .populate("routeId", "fromLocation toLocation startTime endTime")
       .populate("contractId", "contractNumber status")
       .populate("passengers.employeeId", "fullName whatsappNumber email")
@@ -1539,6 +1539,27 @@ export const getCorporateOwnerBookings = async (req, res) => {
     const bookings = []
     
     for (const trip of trips) {
+      // Resolve driver name from Driver model or User model
+      let driverName = trip.driverId?.name || "Unknown"
+      let driverInfo = trip.driverId
+      
+      // If driverId populated from Driver model, also try to find the user account
+      if (trip.driverId && !trip.driverId.fullName) {
+        const driverUserAccount = await User.findOne({ 
+          driverId: trip.driverId._id,
+          role: { $in: ["B2B_PARTNER_DRIVER", "CORPORATE_DRIVER"] }
+        }).select("fullName whatsappNumber email")
+        if (driverUserAccount) {
+          driverName = driverUserAccount.fullName
+          driverInfo = {
+            _id: trip.driverId._id,
+            name: driverUserAccount.fullName,
+            email: driverUserAccount.email,
+            phone: driverUserAccount.whatsappNumber,
+          }
+        }
+      }
+
       for (const passenger of trip.passengers) {
         // Filter by status if provided
         if (status && passenger.bookingStatus !== status) {
@@ -1571,13 +1592,13 @@ export const getCorporateOwnerBookings = async (req, res) => {
           numberOfSeats: 1,
           route: trip.routeId,
           routeId: trip.routeId,
-          driver: trip.driverId,
+          driver: driverInfo,
           driverId: trip.driverId,
-          driverName: trip.driverId?.fullName,
+          driverName: driverName,
           vehicle: trip.vehicleId,
           vehicleId: trip.vehicleId,
-          vehicleModel: trip.vehicleId?.model,
-          vehiclePlate: trip.vehicleId?.licensePlate,
+          vehicleModel: trip.vehicleId?.model || trip.vehicleId?.vehicleName,
+          vehiclePlate: trip.vehicleId?.licensePlate || trip.vehicleId?.registrationNumber,
           contract: trip.contractId,
           contractId: trip.contractId,
           currentLocation: trip.currentLocation,
@@ -1825,13 +1846,25 @@ export const getAvailableSeats = async (req, res) => {
 // Get B2B_Partner driver bookings from Trip model
 export const getB2B_PartnerDriverBookings = async (req, res) => {
     try {
-        const driverId = req.params.driverId || req.userId
+        const paramDriverId = req.params.driverId || req.userId
         const { status } = req.query
 
-        console.log("[v0] Fetching B2B driver trips for driverId:", driverId)
+        // Resolve the actual driver model ID from user's driverId field
+        // Because Trip.driverId references drivers collection, not users collection
+        let actualDriverId = paramDriverId
+        const driverUser = await User.findById(paramDriverId)
+        if (driverUser && driverUser.driverId) {
+            actualDriverId = driverUser.driverId.toString()
+        }
 
-        // Query Trip model where driver is assigned
-        const query = { driverId }
+        console.log("[v0] Fetching B2B driver trips for userId:", paramDriverId, "actualDriverId:", actualDriverId)
+
+        // Query Trip model where driver is assigned - check both user ID and driver model ID
+        const driverIdFilter = actualDriverId !== paramDriverId 
+            ? { $or: [{ driverId: actualDriverId }, { driverId: paramDriverId }] }
+            : { driverId: paramDriverId }
+        
+        const query = { ...driverIdFilter }
         if (status) {
             query.status = status
         }
@@ -1913,15 +1946,23 @@ export const startB2B_PartnerDriverTrip = async (req, res) => {
         const driverId = req.userId
         const { bookingId } = req.params
 
-        console.log("[v0] Starting trip:", bookingId, "by driver:", driverId)
+        // Resolve actual driver model ID from user's driverId field
+        let actualDriverId = driverId
+        const driverUser = await User.findById(driverId)
+        if (driverUser && driverUser.driverId) {
+            actualDriverId = driverUser.driverId.toString()
+        }
+
+        console.log("[v0] Starting trip:", bookingId, "by driver userId:", driverId, "actualDriverId:", actualDriverId)
 
         // Try to find in Trip model first (corporate trips)
         let trip = await Trip.findById(bookingId)
             .populate("passengers.employeeId", "fullName email whatsappNumber")
 
         if (trip) {
-            // It's a Trip model record
-            if (trip.driverId?.toString() !== driverId) {
+            // It's a Trip model record - check against both user ID and driver model ID
+            const tripDriverId = trip.driverId?.toString()
+            if (tripDriverId !== driverId && tripDriverId !== actualDriverId) {
                 return res.status(403).json({
                     success: false,
                     message: "Unauthorized: This trip does not belong to you",
@@ -2038,15 +2079,23 @@ export const completeB2B_PartnerDriverBooking = async (req, res) => {
         const driverId = req.userId
         const { bookingId } = req.params
 
-        console.log("[v0] Completing trip:", bookingId, "by driver:", driverId)
+        // Resolve actual driver model ID from user's driverId field
+        let actualDriverId = driverId
+        const driverUser = await User.findById(driverId)
+        if (driverUser && driverUser.driverId) {
+            actualDriverId = driverUser.driverId.toString()
+        }
+
+        console.log("[v0] Completing trip:", bookingId, "by driver userId:", driverId, "actualDriverId:", actualDriverId)
 
         // Try to find in Trip model first (corporate trips)
         let trip = await Trip.findById(bookingId)
             .populate("passengers.employeeId", "fullName email whatsappNumber")
 
         if (trip) {
-            // It's a Trip model record
-            if (trip.driverId?.toString() !== driverId) {
+            // It's a Trip model record - check against both user ID and driver model ID
+            const tripDriverId = trip.driverId?.toString()
+            if (tripDriverId !== driverId && tripDriverId !== actualDriverId) {
                 return res.status(403).json({
                     success: false,
                     message: "Unauthorized: This trip does not belong to you",
@@ -2160,13 +2209,24 @@ export const completeB2B_PartnerDriverBooking = async (req, res) => {
   // Get corporate driver bookings from Trip model
   export const getCorporateDriverBookings = async (req, res) => {
     try {
-    const driverId = req.params.driverId || req.userId
+    const paramDriverId = req.params.driverId || req.userId
     const { status } = req.query
 
-    console.log("[v0] Fetching corporate driver trips for driverId:", driverId)
+    // Resolve the actual driver model ID from user's driverId field
+    let actualDriverId = paramDriverId
+    const driverUser = await User.findById(paramDriverId)
+    if (driverUser && driverUser.driverId) {
+      actualDriverId = driverUser.driverId.toString()
+    }
 
-    // Query Trip model where driver is assigned
-    const query = { driverId }
+    console.log("[v0] Fetching corporate driver trips for userId:", paramDriverId, "actualDriverId:", actualDriverId)
+
+    // Query Trip model where driver is assigned - check both user ID and driver model ID
+    const driverIdFilter = actualDriverId !== paramDriverId 
+      ? { $or: [{ driverId: actualDriverId }, { driverId: paramDriverId }] }
+      : { driverId: paramDriverId }
+    
+    const query = { ...driverIdFilter }
     if (status) {
       query.status = status
     }
@@ -2246,12 +2306,20 @@ export const startCorporateTrip = async (req, res) => {
         const driverId = req.userId
         const { bookingId } = req.params
 
+        // Resolve actual driver model ID from user's driverId field
+        let actualDriverId = driverId
+        const driverUser = await User.findById(driverId)
+        if (driverUser && driverUser.driverId) {
+            actualDriverId = driverUser.driverId.toString()
+        }
+
         // Try to find in Trip model first
         let trip = await Trip.findById(bookingId)
             .populate("passengers.employeeId", "fullName email whatsappNumber")
 
         if (trip) {
-            if (trip.driverId?.toString() !== driverId) {
+            const tripDriverId = trip.driverId?.toString()
+            if (tripDriverId !== driverId && tripDriverId !== actualDriverId) {
                 return res.status(403).json({
                     success: false,
                     message: "Unauthorized: This trip does not belong to you",
@@ -2368,12 +2436,20 @@ export const completeCorporateBooking = async (req, res) => {
         const driverId = req.userId
         const { bookingId } = req.params
 
+        // Resolve actual driver model ID from user's driverId field
+        let actualDriverId = driverId
+        const driverUser = await User.findById(driverId)
+        if (driverUser && driverUser.driverId) {
+            actualDriverId = driverUser.driverId.toString()
+        }
+
         // Try to find in Trip model first
         let trip = await Trip.findById(bookingId)
             .populate("passengers.employeeId", "fullName email whatsappNumber")
 
         if (trip) {
-            if (trip.driverId?.toString() !== driverId) {
+            const tripDriverId = trip.driverId?.toString()
+            if (tripDriverId !== driverId && tripDriverId !== actualDriverId) {
                 return res.status(403).json({
                     success: false,
                     message: "Unauthorized: This trip does not belong to you",
