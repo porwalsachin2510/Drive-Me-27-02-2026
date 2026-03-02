@@ -615,8 +615,11 @@ export const getMyBookings = async (req, res) => {
         const employeeId = req.userId;
         const { status, date } = req.query;
 
-        // Build query
-        const query = { "passengers.employeeId": employeeId };
+        // Build query - only show upcoming active bookings, not completed
+        const query = { 
+            "passengers.employeeId": employeeId,
+            status: { $in: ['SCHEDULED', 'IN_PROGRESS'] }
+        };
 
         if (status) {
             query.status = status;
@@ -632,21 +635,41 @@ export const getMyBookings = async (req, res) => {
 
         const trips = await Trip.find(query)
             .populate('routeId', 'fromLocation toLocation stopPoints')
-            .populate('vehicleId', 'make model licensePlate')
-            .populate('driverId', 'fullName phone')
-            .sort({ tripDate: -1 });
+            .populate('vehicleId', 'vehicleName registrationNumber vehicleCategory model licensePlate')
+            .populate('driverId', 'name email phone fullName whatsappNumber')
+            .sort({ tripDate: 1 });
 
-        // Filter to show only this employee's booking
-        const myBookings = trips.map(trip => {
+        // Resolve driver names (Driver model uses 'name', User model uses 'fullName')
+        const myBookings = await Promise.all(trips.map(async (trip) => {
             const myPassenger = trip.passengers.find(p => 
                 p.employeeId.toString() === employeeId
             );
+
+            const tripObj = trip.toObject();
+
+            // Resolve driver name
+            let driverName = tripObj.driverId?.name || tripObj.driverId?.fullName || null;
+            let driverContact = tripObj.driverId?.phone || tripObj.driverId?.whatsappNumber || null;
             
+            if (tripObj.driverId && !driverName) {
+                try {
+                    const driverUser = await User.findOne({ driverId: tripObj.driverId._id }).select('fullName whatsappNumber');
+                    if (driverUser) {
+                        driverName = driverUser.fullName;
+                        driverContact = driverUser.whatsappNumber || driverContact;
+                    }
+                } catch (e) {}
+            }
+
             return {
-                ...trip.toObject(),
+                ...tripObj,
+                driverName: driverName || 'Not assigned',
+                driverContact: driverContact || 'Not available',
+                vehicleName: tripObj.vehicleId?.vehicleName || tripObj.vehicleId?.model || 'Not assigned',
+                vehicleNumber: tripObj.vehicleId?.registrationNumber || tripObj.vehicleId?.licensePlate || 'Not assigned',
                 myBooking: myPassenger
             };
-        });
+        }));
 
         res.json({
             success: true,

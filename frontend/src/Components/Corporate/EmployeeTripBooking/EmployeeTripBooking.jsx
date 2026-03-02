@@ -63,35 +63,45 @@ function EmployeeTripBooking() {
       const response = await api.get("/corporate-employee-users/dashboard");
       const dashboardData = response.data?.data;
       
-      // Get todayTrips and upcomingTrips - show only SCHEDULED and IN_PROGRESS
+      // Get todayTrips and upcomingTrips
       const todayTrips = dashboardData?.todayTrips || [];
       const upcomingTrips = dashboardData?.upcomingTrips || dashboardData?.bookings || [];
       
-      // Merge and deduplicate by _id, filter out COMPLETED/CANCELLED
+      // Merge and deduplicate by _id
       const allTrips = [...todayTrips, ...upcomingTrips];
       const uniqueTrips = allTrips
         .filter((trip, index, self) => 
           index === self.findIndex(t => t._id === trip._id)
         )
         .filter(trip => ['SCHEDULED', 'IN_PROGRESS'].includes(trip.status));
+
+      // Only show today and next day trips (employee should book 1 day advance max)
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const dayAfterTomorrow = new Date(todayStart);
+      dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2); // today + tomorrow
+      
+      const filteredTrips = uniqueTrips.filter(trip => {
+        const tripDate = new Date(trip.tripDate || trip.date);
+        return tripDate >= todayStart && tripDate < dayAfterTomorrow;
+      });
       
       // Also try to get route stop points for pickup selection
       try {
         const routeResponse = await api.get("/corporate-employee-users/route");
         const routeData = routeResponse.data?.data;
         if (routeData?.route?.stopPoints) {
-          // Attach stop points to all trips that don't have them
-          const enrichedTrips = uniqueTrips.map(trip => ({
+          const enrichedTrips = filteredTrips.map(trip => ({
             ...trip,
-            stopPoints: trip.routeId?.stopPoints || routeData.route.stopPoints || [],
+            stopPoints: trip.stopPoints || trip.routeId?.stopPoints || routeData.route.stopPoints || [],
             routeStopPoints: routeData.route.stopPoints || []
           }));
           setTrips(enrichedTrips);
         } else {
-          setTrips(uniqueTrips);
+          setTrips(filteredTrips);
         }
       } catch {
-        setTrips(uniqueTrips);
+        setTrips(filteredTrips);
       }
     } catch (error) {
       console.error("Error fetching trips:", error);
@@ -636,8 +646,8 @@ function EmployeeTripBooking() {
 
             <div style={{ padding: "16px" }}>
               <div style={{ marginBottom: "16px" }}>
-                <p><strong>Driver:</strong> {trackingTrip.driverName || 'Assigned Driver'}</p>
-                <p><strong>Vehicle:</strong> {trackingTrip.vehicleName || trackingTrip.vehicleNumber || 'N/A'}</p>
+                <p><strong>Driver:</strong> {trackingTrip.driverName && trackingTrip.driverName !== 'Not assigned' ? trackingTrip.driverName : (trackingTrip.driverId ? 'Driver Assigned' : 'Not assigned')}</p>
+                <p><strong>Vehicle:</strong> {trackingTrip.vehicleName && trackingTrip.vehicleName !== 'Not assigned' ? `${trackingTrip.vehicleName}${trackingTrip.vehicleNumber && trackingTrip.vehicleNumber !== 'Not assigned' ? ` (${trackingTrip.vehicleNumber})` : ''}` : (trackingTrip.vehicleNumber && trackingTrip.vehicleNumber !== 'Not assigned' ? trackingTrip.vehicleNumber : 'Not assigned')}</p>
                 <p><strong>Status:</strong>{' '}
                   <span style={{ 
                     color: driverLocation ? "#10b981" : "#f59e0b",
@@ -667,6 +677,54 @@ function EmployeeTripBooking() {
                       style={{ border: 0 }}
                       allowFullScreen
                     />
+                    {/* Vehicle Icon Overlay - centered on driver location */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%, -50%)",
+                        zIndex: 1000,
+                        pointerEvents: "none",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "44px",
+                          height: "44px",
+                          backgroundColor: "#3b82f6",
+                          borderRadius: "50%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          boxShadow: "0 2px 12px rgba(59, 130, 246, 0.5)",
+                          border: "3px solid white",
+                          animation: "driverPulse 2s infinite",
+                        }}
+                      >
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
+                        </svg>
+                      </div>
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "-28px",
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          backgroundColor: "#10b981",
+                          color: "white",
+                          padding: "4px 10px",
+                          borderRadius: "12px",
+                          fontSize: "10px",
+                          fontWeight: "600",
+                          whiteSpace: "nowrap",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                        }}
+                      >
+                        En Route
+                      </div>
+                    </div>
                     <div style={{
                       position: "absolute",
                       top: "10px",
@@ -696,7 +754,9 @@ function EmployeeTripBooking() {
                     color: "white"
                   }}>
                     <div style={{ fontSize: "48px", marginBottom: "16px" }}>
-                      {'🗺️'}
+                      <svg width="48" height="48" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/>
+                      </svg>
                     </div>
                     <h3 style={{ margin: "0 0 8px 0", fontSize: "18px" }}>
                       Waiting for Driver Location...

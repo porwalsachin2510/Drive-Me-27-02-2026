@@ -1869,20 +1869,17 @@ export const getB2B_PartnerDriverBookings = async (req, res) => {
             query.status = status
         }
 
-        // Only show today's and future trips (not historical completed ones)
+        // Only show today's trips for daily driver view
         const todayStart = new Date()
         todayStart.setHours(0, 0, 0, 0)
+        const todayEnd = new Date(todayStart)
+        todayEnd.setDate(todayEnd.getDate() + 1)
         
-        // Include today + next 7 days, and any IN_PROGRESS trips regardless of date
-        const nextWeek = new Date(todayStart.getTime() + 7 * 24 * 60 * 60 * 1000)
-        query.$or = [
-            ...(query.$or || []),
-        ]
-        // Build the final query with date filter
+        // Build the final query - today's trips + any IN_PROGRESS
         const dateFilter = {
             $or: [
-                { tripDate: { $gte: todayStart, $lte: nextWeek } },
-                { status: 'IN_PROGRESS' } // Always show in-progress trips
+                { tripDate: { $gte: todayStart, $lt: todayEnd } },
+                { status: 'IN_PROGRESS' }
             ]
         }
         const finalQuery = { $and: [driverIdFilter, dateFilter] }
@@ -1890,7 +1887,7 @@ export const getB2B_PartnerDriverBookings = async (req, res) => {
             finalQuery.$and.push({ status })
         }
 
-        // Get trips assigned to this driver for today and upcoming
+        // Get today's trips assigned to this driver
         const trips = await Trip.find(finalQuery)
             .populate("routeId")
             .populate("vehicleId")
@@ -2252,16 +2249,33 @@ export const completeB2B_PartnerDriverBooking = async (req, res) => {
       query.status = status
     }
 
-    // Get all trips assigned to this driver
-    const trips = await Trip.find(query)
+    // Only show today's trips for daily driver view
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+    const todayEnd = new Date(todayStart)
+    todayEnd.setDate(todayEnd.getDate() + 1)
+    
+    const dateFilter = {
+      $or: [
+        { tripDate: { $gte: todayStart, $lt: todayEnd } },
+        { status: 'IN_PROGRESS' }
+      ]
+    }
+    const finalQuery = { $and: [driverIdFilter, dateFilter] }
+    if (status) {
+      finalQuery.$and.push({ status })
+    }
+
+    // Get today's trips assigned to this driver
+    const trips = await Trip.find(finalQuery)
       .populate("routeId")
       .populate("vehicleId")
       .populate("corporateId", "companyName fullName")
       .populate("b2bPartnerId", "companyName fullName")
       .populate("passengers.employeeId", "fullName email whatsappNumber")
-      .sort({ tripDate: -1 })
+      .sort({ tripDate: 1 })
 
-    console.log("[v0] Found corporate driver trips:", trips.length)
+    console.log("[v0] Found corporate driver trips for today:", trips.length)
 
     // Transform trips into booking format for frontend compatibility
     const bookings = trips.map(trip => {

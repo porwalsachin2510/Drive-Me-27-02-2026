@@ -162,36 +162,67 @@ export const getEmployeeDashboard = async (req, res) => {
             status: { $in: ['SCHEDULED', 'IN_PROGRESS'] }
         })
         .populate('routeId', 'fromLocation toLocation stopPoints')
-        .populate('vehicleId', 'vehicleName registrationNumber vehicleCategory')
-        .populate('driverId', 'fullName whatsappNumber')
+        .populate('vehicleId', 'vehicleName registrationNumber vehicleCategory model licensePlate')
+        .populate('driverId', 'name email phone fullName whatsappNumber')
         .sort({ startTime: 1 });
 
-        const todayTrips = todayTripsRaw.map(trip => ({
-            _id: trip._id,
-            date: trip.tripDate?.toISOString().split('T')[0],
-            tripDate: trip.tripDate,
-            startTime: trip.startTime,
-            endTime: trip.endTime,
-            fromLocation: trip.fromLocation || 'Unknown',
-            toLocation: trip.toLocation || 'Unknown',
-            route: `${trip.fromLocation || 'Unknown'} → ${trip.toLocation || 'Unknown'}`,
-            tripType: trip.tripType,
-            direction: trip.direction,
-            status: trip.status,
-            vehicleName: trip.vehicleId?.vehicleName || vehicleInfo?.vehicleName || 'Not assigned',
-            vehicleNumber: trip.vehicleId?.registrationNumber || vehicleInfo?.vehicleNumber || 'Not assigned',
-            driverName: trip.driverId?.fullName || vehicleInfo?.driverName || 'Not assigned',
-            driverContact: trip.driverId?.whatsappNumber || vehicleInfo?.driverContact || 'Not available',
-            totalSeats: trip.totalSeats,
-            availableSeats: trip.availableSeats,
-            bookedSeats: trip.bookedSeats,
-            stopPoints: trip.routeId?.stopPoints || [],
-            routeId: trip.routeId ? {
-                _id: trip.routeId._id,
-                fromLocation: trip.routeId.fromLocation,
-                toLocation: trip.routeId.toLocation,
-                stopPoints: trip.routeId.stopPoints || []
-            } : null
+        // Resolve driver names from Driver model (has 'name') or User model (has 'fullName')
+        const resolveDriverInfo = async (trip) => {
+            const driverDoc = trip.driverId;
+            if (!driverDoc) {
+                // Try to get from vehicleInfo (contract-level assignment)
+                return { 
+                    driverName: vehicleInfo?.driverName || 'Not assigned',
+                    driverContact: vehicleInfo?.driverContact || 'Not available'
+                };
+            }
+            // Driver model uses 'name', User model uses 'fullName'
+            let driverName = driverDoc.name || driverDoc.fullName;
+            let driverContact = driverDoc.phone || driverDoc.whatsappNumber;
+            
+            // If populated from Driver model, also look up the User account for fullName
+            if (!driverName || driverName === 'Not assigned') {
+                const driverUserAccount = await User.findOne({ 
+                    driverId: driverDoc._id
+                }).select('fullName whatsappNumber');
+                if (driverUserAccount) {
+                    driverName = driverUserAccount.fullName;
+                    driverContact = driverUserAccount.whatsappNumber || driverContact;
+                }
+            }
+            return { driverName: driverName || 'Not assigned', driverContact: driverContact || 'Not available' };
+        };
+
+        const todayTrips = await Promise.all(todayTripsRaw.map(async (trip) => {
+            const driverInfo = await resolveDriverInfo(trip);
+            return {
+                _id: trip._id,
+                date: trip.tripDate?.toISOString().split('T')[0],
+                tripDate: trip.tripDate,
+                startTime: trip.startTime,
+                endTime: trip.endTime,
+                fromLocation: trip.fromLocation || 'Unknown',
+                toLocation: trip.toLocation || 'Unknown',
+                route: `${trip.fromLocation || 'Unknown'} -> ${trip.toLocation || 'Unknown'}`,
+                tripType: trip.tripType,
+                direction: trip.direction,
+                status: trip.status,
+                driverId: trip.driverId?._id,
+                vehicleName: trip.vehicleId?.vehicleName || trip.vehicleId?.model || vehicleInfo?.vehicleName || 'Not assigned',
+                vehicleNumber: trip.vehicleId?.registrationNumber || trip.vehicleId?.licensePlate || vehicleInfo?.vehicleNumber || 'Not assigned',
+                driverName: driverInfo.driverName,
+                driverContact: driverInfo.driverContact,
+                totalSeats: trip.totalSeats,
+                availableSeats: trip.availableSeats,
+                bookedSeats: trip.bookedSeats,
+                stopPoints: trip.routeId?.stopPoints || [],
+                routeId: trip.routeId ? {
+                    _id: trip.routeId._id,
+                    fromLocation: trip.routeId.fromLocation,
+                    toLocation: trip.routeId.toLocation,
+                    stopPoints: trip.routeId.stopPoints || []
+                } : null
+            };
         }));
 
         // Build route info for response
@@ -748,37 +779,62 @@ const getUpcomingTripsFromTrips = async (userId, employee) => {
         today.setHours(0, 0, 0, 0);
         const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
 
+        // Show only tomorrow+ trips (today's trips are in todayTrips)
+        const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+
         const trips = await Trip.find({
             corporateId: employee.companyId,
-            tripDate: { $gte: today, $lte: nextWeek },
+            tripDate: { $gte: tomorrow, $lte: nextWeek },
             status: { $in: ['SCHEDULED', 'IN_PROGRESS'] }
         })
         .populate('routeId', 'fromLocation toLocation stopPoints')
-        .populate('vehicleId', 'vehicleName registrationNumber vehicleCategory')
-        .populate('driverId', 'fullName whatsappNumber')
+        .populate('vehicleId', 'vehicleName registrationNumber vehicleCategory model licensePlate')
+        .populate('driverId', 'name email phone fullName whatsappNumber')
         .sort({ tripDate: 1, startTime: 1 });
 
-        const mappedTrips = trips.map(trip => ({
-            _id: trip._id,
-            date: trip.tripDate?.toISOString().split('T')[0],
-            tripDate: trip.tripDate,
-            startTime: trip.startTime,
-            endTime: trip.endTime,
-            fromLocation: trip.fromLocation || 'Unknown',
-            toLocation: trip.toLocation || 'Unknown',
-            route: `${trip.fromLocation || 'Unknown'} → ${trip.toLocation || 'Unknown'}`,
-            tripType: trip.tripType,
-            direction: trip.direction,
-            status: trip.status,
-            vehicleName: trip.vehicleId?.vehicleName || 'Not assigned',
-            vehicleNumber: trip.vehicleId?.registrationNumber || 'Not assigned',
-            driverName: trip.driverId?.fullName || 'Not assigned',
-            driverContact: trip.driverId?.whatsappNumber || 'Not available',
-            totalSeats: trip.totalSeats,
-            availableSeats: trip.availableSeats,
-            bookedSeats: trip.bookedSeats,
-            pickupLocation: employee.transportDetails?.pickupPoint || trip.fromLocation,
-            dropoffLocation: employee.transportDetails?.dropOffPoint || trip.toLocation
+        const mappedTrips = await Promise.all(trips.map(async (trip) => {
+            // Resolve driver name from Driver model (name) or User model (fullName)
+            let driverName = trip.driverId?.name || trip.driverId?.fullName || 'Not assigned';
+            let driverContact = trip.driverId?.phone || trip.driverId?.whatsappNumber || 'Not available';
+            
+            if (trip.driverId && (!trip.driverId.name && !trip.driverId.fullName)) {
+                const driverUser = await User.findOne({ driverId: trip.driverId._id }).select('fullName whatsappNumber');
+                if (driverUser) {
+                    driverName = driverUser.fullName;
+                    driverContact = driverUser.whatsappNumber || driverContact;
+                }
+            }
+
+            return {
+                _id: trip._id,
+                date: trip.tripDate?.toISOString().split('T')[0],
+                tripDate: trip.tripDate,
+                startTime: trip.startTime,
+                endTime: trip.endTime,
+                fromLocation: trip.fromLocation || 'Unknown',
+                toLocation: trip.toLocation || 'Unknown',
+                route: `${trip.fromLocation || 'Unknown'} -> ${trip.toLocation || 'Unknown'}`,
+                tripType: trip.tripType,
+                direction: trip.direction,
+                status: trip.status,
+                driverId: trip.driverId?._id,
+                vehicleName: trip.vehicleId?.vehicleName || trip.vehicleId?.model || 'Not assigned',
+                vehicleNumber: trip.vehicleId?.registrationNumber || trip.vehicleId?.licensePlate || 'Not assigned',
+                driverName,
+                driverContact,
+                totalSeats: trip.totalSeats,
+                availableSeats: trip.availableSeats,
+                bookedSeats: trip.bookedSeats,
+                pickupLocation: employee.transportDetails?.pickupPoint || trip.fromLocation,
+                dropoffLocation: employee.transportDetails?.dropOffPoint || trip.toLocation,
+                stopPoints: trip.routeId?.stopPoints || [],
+                routeId: trip.routeId ? {
+                    _id: trip.routeId._id,
+                    fromLocation: trip.routeId.fromLocation,
+                    toLocation: trip.routeId.toLocation,
+                    stopPoints: trip.routeId.stopPoints || []
+                } : null
+            };
         }));
 
         return { trips: mappedTrips };

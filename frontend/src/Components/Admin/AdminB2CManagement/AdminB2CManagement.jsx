@@ -20,7 +20,7 @@ function AdminB2CManagement() {
     activeRoutes: 0,
     totalBookings: 0,
     totalRevenue: 0,
-    pendingReassignments: 0,
+    totalPassengerBookings: 0,
     activeTags: 0
   })
 
@@ -44,7 +44,7 @@ function AdminB2CManagement() {
           activeRoutes: data.routes?.activeRoutes || 0,
           totalBookings: data.bookings?.totalBookings || 0,
           totalRevenue: data.bookings?.totalRevenue || 0,
-          pendingReassignments: data.passengers?.pendingBookings || 0,
+          totalPassengerBookings: data.passengers?.totalPassengerBookings || 0,
           activeTags: data.tags?.activeTags || 0
         })
       } else {
@@ -61,7 +61,7 @@ function AdminB2CManagement() {
         activeRoutes: 0,
         totalBookings: 0,
         totalRevenue: 0,
-        pendingReassignments: 0,
+        totalPassengerBookings: 0,
         activeTags: 0
       })
     } finally {
@@ -82,7 +82,7 @@ function AdminB2CManagement() {
     { id: "service-providers", label: "🚌 Service Providers", count: stats.activeProviders },
     { id: "route-management", label: "🛣️ Route Management", count: stats.activeRoutes },
     { id: "tags-badges", label: "🏷️ Tags & Badges", count: stats.activeTags },
-    { id: "passengers", label: "👥 Passengers & Bookings", count: stats.pendingReassignments },
+    { id: "passengers", label: "👥 Passengers & Bookings", count: stats.totalPassengerBookings },
     { id: "earnings", label: "💰 Earnings & Payments", count: null },
   ]
 
