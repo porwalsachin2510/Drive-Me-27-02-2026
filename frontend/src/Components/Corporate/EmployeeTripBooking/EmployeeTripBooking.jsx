@@ -294,8 +294,8 @@ function EmployeeTripBooking() {
     };
   }, [socket, trackingTrip]);
 
-  // Track Driver handler
-  const handleTrackDriver = useCallback((trip) => {
+  // Track Driver handler - fetch fresh trip data to get resolved driver name
+  const handleTrackDriver = useCallback(async (trip) => {
     setTrackingTrip(trip);
     setDriverLocation(null);
     setShowTrackingModal(true);
@@ -303,6 +303,41 @@ function EmployeeTripBooking() {
     // Join booking room for this trip to receive location updates
     if (socket?.socket && trip._id) {
       socket.socket.emit("join_booking_room", trip._id);
+    }
+
+    // Fetch fresh trip data from my-bookings to get properly resolved driver name
+    if (!trip.driverName || trip.driverName === 'Not assigned') {
+      try {
+        const response = await api.get("/trips/my-bookings");
+        const bookings = response.data?.data?.bookings || [];
+        const freshTrip = bookings.find(b => b._id === trip._id);
+        if (freshTrip && freshTrip.driverName && freshTrip.driverName !== 'Not assigned') {
+          setTrackingTrip(prev => ({
+            ...prev,
+            driverName: freshTrip.driverName,
+            driverContact: freshTrip.driverContact,
+            vehicleName: freshTrip.vehicleName || prev.vehicleName,
+            vehicleNumber: freshTrip.vehicleNumber || prev.vehicleNumber
+          }));
+        }
+      } catch (e) {
+        // Fallback: also try dashboard API
+        try {
+          const dashResponse = await api.get("/corporate-employee-users/dashboard");
+          const dashData = dashResponse.data?.data;
+          const allTrips = [...(dashData?.todayTrips || []), ...(dashData?.upcomingTrips || dashData?.bookings || [])];
+          const freshTrip = allTrips.find(t => t._id === trip._id);
+          if (freshTrip && freshTrip.driverName && freshTrip.driverName !== 'Not assigned') {
+            setTrackingTrip(prev => ({
+              ...prev,
+              driverName: freshTrip.driverName,
+              driverContact: freshTrip.driverContact,
+              vehicleName: freshTrip.vehicleName || prev.vehicleName,
+              vehicleNumber: freshTrip.vehicleNumber || prev.vehicleNumber
+            }));
+          }
+        } catch (e2) {}
+      }
     }
   }, [socket]);
 
@@ -371,7 +406,7 @@ function EmployeeTripBooking() {
                         <p><strong>Time:</strong> {trip.startTime} {trip.endTime ? `- ${trip.endTime}` : ''}</p>
                         <p><strong>Type:</strong> {trip.tripType || 'One Way'} {trip.direction ? `(${trip.direction})` : ''}</p>
                         <p><strong>Vehicle:</strong> {trip.vehicleName || trip.vehicleNumber || trip.vehicleId?.vehicleName || 'Not assigned'}</p>
-                        <p><strong>Driver:</strong> {trip.driverName || trip.driverId?.fullName || 'Not assigned'}</p>
+                        <p><strong>Driver:</strong> {trip.driverName && trip.driverName !== 'Not assigned' ? trip.driverName : (trip.driverId?.fullName || trip.driverId?.name || (trip.driverId ? 'Driver Assigned' : 'Not assigned'))}</p>
                       </div>
 
                       <div className="employee-trip-booking-trip-seats">
@@ -465,7 +500,7 @@ function EmployeeTripBooking() {
                         <p><strong>Time:</strong> {booking.startTime} {booking.endTime ? `- ${booking.endTime}` : ''}</p>
                         <p><strong>Type:</strong> {booking.tripType || 'One Way'}</p>
                         <p><strong>Vehicle:</strong> {booking.vehicleName || booking.vehicleNumber || 'Not assigned'}</p>
-                        <p><strong>Driver:</strong> {booking.driverName || 'Not assigned'}</p>
+                        <p><strong>Driver:</strong> {booking.driverName && booking.driverName !== 'Not assigned' ? booking.driverName : (booking.driverId?.fullName || booking.driverId?.name || (booking.driverId ? 'Driver Assigned' : 'Not assigned'))}</p>
                         <p><strong>Pickup:</strong> {booking.pickupLocation || booking.fromLocation}</p>
                       </div>
 
@@ -646,7 +681,7 @@ function EmployeeTripBooking() {
 
             <div style={{ padding: "16px" }}>
               <div style={{ marginBottom: "16px" }}>
-                <p><strong>Driver:</strong> {trackingTrip.driverName && trackingTrip.driverName !== 'Not assigned' ? trackingTrip.driverName : (trackingTrip.driverId ? 'Driver Assigned' : 'Not assigned')}</p>
+                <p><strong>Driver:</strong> {trackingTrip.driverName && trackingTrip.driverName !== 'Not assigned' ? trackingTrip.driverName : (trackingTrip.driverId?.fullName || trackingTrip.driverId?.name || (trackingTrip.driverId ? 'Loading driver info...' : 'Not assigned'))}</p>
                 <p><strong>Vehicle:</strong> {trackingTrip.vehicleName && trackingTrip.vehicleName !== 'Not assigned' ? `${trackingTrip.vehicleName}${trackingTrip.vehicleNumber && trackingTrip.vehicleNumber !== 'Not assigned' ? ` (${trackingTrip.vehicleNumber})` : ''}` : (trackingTrip.vehicleNumber && trackingTrip.vehicleNumber !== 'Not assigned' ? trackingTrip.vehicleNumber : 'Not assigned')}</p>
                 <p><strong>Status:</strong>{' '}
                   <span style={{ 

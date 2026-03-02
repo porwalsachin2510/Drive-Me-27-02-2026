@@ -176,20 +176,58 @@ export const getEmployeeDashboard = async (req, res) => {
                     driverContact: vehicleInfo?.driverContact || 'Not available'
                 };
             }
-            // Driver model uses 'name', User model uses 'fullName'
-            let driverName = driverDoc.name || driverDoc.fullName;
-            let driverContact = driverDoc.phone || driverDoc.whatsappNumber;
-            
-            // If populated from Driver model, also look up the User account for fullName
-            if (!driverName || driverName === 'Not assigned') {
-                const driverUserAccount = await User.findOne({ 
-                    driverId: driverDoc._id
-                }).select('fullName whatsappNumber');
-                if (driverUserAccount) {
-                    driverName = driverUserAccount.fullName;
-                    driverContact = driverUserAccount.whatsappNumber || driverContact;
-                }
+
+            let driverName = null;
+            let driverContact = null;
+            const driverObjectId = driverDoc._id || driverDoc;
+
+            // 1. Check if populate worked (User model has fullName)
+            if (typeof driverDoc === 'object' && driverDoc._id) {
+                driverName = driverDoc.name || driverDoc.fullName || null;
+                driverContact = driverDoc.phone || driverDoc.whatsappNumber || null;
             }
+
+            // 2. If no name, check Driver model directly (driverId might be a Driver ObjectId)
+            if (!driverName && driverObjectId) {
+                try {
+                    const driverRecord = await Driver.findById(driverObjectId).select('name phone email');
+                    if (driverRecord) {
+                        driverName = driverRecord.name;
+                        driverContact = driverRecord.phone || driverContact;
+                    }
+                } catch (e) {}
+            }
+
+            // 3. If still no name, find User account that references this driver
+            if (!driverName && driverObjectId) {
+                try {
+                    const driverUserAccount = await User.findOne({ 
+                        driverId: driverObjectId
+                    }).select('fullName whatsappNumber phone');
+                    if (driverUserAccount) {
+                        driverName = driverUserAccount.fullName;
+                        driverContact = driverUserAccount.whatsappNumber || driverUserAccount.phone || driverContact;
+                    }
+                } catch (e) {}
+            }
+
+            // 4. Last resort: look up User by _id directly
+            if (!driverName && driverObjectId) {
+                try {
+                    const userDoc = await User.findById(driverObjectId).select('fullName whatsappNumber phone');
+                    if (userDoc) {
+                        driverName = userDoc.fullName;
+                        driverContact = userDoc.whatsappNumber || userDoc.phone || driverContact;
+                    }
+                } catch (e) {}
+            }
+
+            // Fallback to vehicleInfo from contract
+            if (!driverName) {
+                driverName = vehicleInfo?.driverName || null;
+                driverContact = driverContact || vehicleInfo?.driverContact || null;
+            }
+
             return { driverName: driverName || 'Not assigned', driverContact: driverContact || 'Not available' };
         };
 
@@ -793,16 +831,49 @@ const getUpcomingTripsFromTrips = async (userId, employee) => {
         .sort({ tripDate: 1, startTime: 1 });
 
         const mappedTrips = await Promise.all(trips.map(async (trip) => {
-            // Resolve driver name from Driver model (name) or User model (fullName)
-            let driverName = trip.driverId?.name || trip.driverId?.fullName || 'Not assigned';
-            let driverContact = trip.driverId?.phone || trip.driverId?.whatsappNumber || 'Not available';
-            
-            if (trip.driverId && (!trip.driverId.name && !trip.driverId.fullName)) {
-                const driverUser = await User.findOne({ driverId: trip.driverId._id }).select('fullName whatsappNumber');
-                if (driverUser) {
-                    driverName = driverUser.fullName;
-                    driverContact = driverUser.whatsappNumber || driverContact;
-                }
+            // Resolve driver name - try multiple sources
+            let driverName = null;
+            let driverContact = null;
+            const driverDoc = trip.driverId;
+            const driverObjectId = driverDoc?._id || driverDoc;
+
+            // 1. Check if populate worked (User model)
+            if (driverDoc && typeof driverDoc === 'object' && driverDoc._id) {
+                driverName = driverDoc.name || driverDoc.fullName || null;
+                driverContact = driverDoc.phone || driverDoc.whatsappNumber || null;
+            }
+
+            // 2. Check Driver model directly
+            if (!driverName && driverObjectId) {
+                try {
+                    const driverRecord = await Driver.findById(driverObjectId).select('name phone');
+                    if (driverRecord) {
+                        driverName = driverRecord.name;
+                        driverContact = driverRecord.phone || driverContact;
+                    }
+                } catch (e) {}
+            }
+
+            // 3. Find User account with this driverId
+            if (!driverName && driverObjectId) {
+                try {
+                    const driverUser = await User.findOne({ driverId: driverObjectId }).select('fullName whatsappNumber phone');
+                    if (driverUser) {
+                        driverName = driverUser.fullName;
+                        driverContact = driverUser.whatsappNumber || driverUser.phone || driverContact;
+                    }
+                } catch (e) {}
+            }
+
+            // 4. Last resort: look up User by _id directly
+            if (!driverName && driverObjectId) {
+                try {
+                    const userDoc = await User.findById(driverObjectId).select('fullName whatsappNumber phone');
+                    if (userDoc) {
+                        driverName = userDoc.fullName;
+                        driverContact = userDoc.whatsappNumber || userDoc.phone || driverContact;
+                    }
+                } catch (e) {}
             }
 
             return {
@@ -817,11 +888,11 @@ const getUpcomingTripsFromTrips = async (userId, employee) => {
                 tripType: trip.tripType,
                 direction: trip.direction,
                 status: trip.status,
-                driverId: trip.driverId?._id,
+                driverId: typeof driverDoc === 'object' ? driverDoc?._id : driverDoc,
                 vehicleName: trip.vehicleId?.vehicleName || trip.vehicleId?.model || 'Not assigned',
                 vehicleNumber: trip.vehicleId?.registrationNumber || trip.vehicleId?.licensePlate || 'Not assigned',
-                driverName,
-                driverContact,
+                driverName: driverName || 'Not assigned',
+                driverContact: driverContact || 'Not available',
                 totalSeats: trip.totalSeats,
                 availableSeats: trip.availableSeats,
                 bookedSeats: trip.bookedSeats,

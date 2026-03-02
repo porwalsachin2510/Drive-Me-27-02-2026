@@ -3,6 +3,7 @@ import Route from "../models/Route.js";
 import Contract from "../models/Contract.js";
 import Vehicle from "../models/Vehicle.js";
 import User from "../models/User.js";
+import Driver from "../models/Driver.js";
 import MonthlyPass from "../models/MonthlyPass.js";
 import CorporateEmployee from "../models/CorporateEmployee.js";
 import { io } from "../index.js";
@@ -649,22 +650,64 @@ export const getMyBookings = async (req, res) => {
 
             const tripObj = trip.toObject();
 
-            // Resolve driver name
-            let driverName = tripObj.driverId?.name || tripObj.driverId?.fullName || null;
-            let driverContact = tripObj.driverId?.phone || tripObj.driverId?.whatsappNumber || null;
-            
-            if (tripObj.driverId && !driverName) {
-                try {
-                    const driverUser = await User.findOne({ driverId: tripObj.driverId._id }).select('fullName whatsappNumber');
-                    if (driverUser) {
-                        driverName = driverUser.fullName;
-                        driverContact = driverUser.whatsappNumber || driverContact;
-                    }
-                } catch (e) {}
+            // Resolve driver name - try multiple sources
+            let driverName = null;
+            let driverContact = null;
+            const rawDriverId = trip._doc?.driverId || tripObj.driverId;
+            const populatedDriver = tripObj.driverId;
+
+            // 1. Check if populate worked (populated object has _id and name/fullName)
+            if (populatedDriver && typeof populatedDriver === 'object' && populatedDriver._id) {
+                driverName = populatedDriver.name || populatedDriver.fullName || null;
+                driverContact = populatedDriver.phone || populatedDriver.whatsappNumber || null;
+            }
+
+            // 2. If no name yet, check if driverId is actually a Driver model ObjectId
+            if (!driverName) {
+                const driverObjectId = typeof populatedDriver === 'object' ? populatedDriver._id : populatedDriver;
+                if (driverObjectId) {
+                    try {
+                        // Check Driver model directly
+                        const driverDoc = await Driver.findById(driverObjectId).select('name phone email');
+                        if (driverDoc) {
+                            driverName = driverDoc.name;
+                            driverContact = driverDoc.phone || driverContact;
+                        }
+                    } catch (e) {}
+                }
+            }
+
+            // 3. If still no name, find the User account that has this driverId
+            if (!driverName) {
+                const driverObjectId = typeof populatedDriver === 'object' ? populatedDriver._id : populatedDriver;
+                if (driverObjectId) {
+                    try {
+                        const driverUser = await User.findOne({ driverId: driverObjectId }).select('fullName whatsappNumber phone');
+                        if (driverUser) {
+                            driverName = driverUser.fullName;
+                            driverContact = driverUser.whatsappNumber || driverUser.phone || driverContact;
+                        }
+                    } catch (e) {}
+                }
+            }
+
+            // 4. Last resort: look up the User directly by _id (if driverId IS a User _id)
+            if (!driverName) {
+                const driverObjectId = typeof populatedDriver === 'object' ? populatedDriver._id : populatedDriver;
+                if (driverObjectId) {
+                    try {
+                        const userDoc = await User.findById(driverObjectId).select('fullName whatsappNumber phone');
+                        if (userDoc) {
+                            driverName = userDoc.fullName;
+                            driverContact = userDoc.whatsappNumber || userDoc.phone || driverContact;
+                        }
+                    } catch (e) {}
+                }
             }
 
             return {
                 ...tripObj,
+                driverId: typeof populatedDriver === 'object' ? populatedDriver._id : populatedDriver,
                 driverName: driverName || 'Not assigned',
                 driverContact: driverContact || 'Not available',
                 vehicleName: tripObj.vehicleId?.vehicleName || tripObj.vehicleId?.model || 'Not assigned',
