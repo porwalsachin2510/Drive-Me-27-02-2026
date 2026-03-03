@@ -388,15 +388,23 @@ const BookingModal = ({ route, isOpen, onClose, isCorporate, onSuccess }) => {
       const response = await api.post('/monthly-pass/create', bookingData);
 
       if (response.data.success) {
-        // Handle payment redirect for STRIPE
-        if (method === "STRIPE" && response.data.paymentUrl) {
-          window.location.href = response.data.paymentUrl;
+        // Handle payment redirect for STRIPE or TAP
+        if (response.data.payment?.paymentUrl) {
+          // Redirect to payment gateway (Stripe or TAP)
+          console.log("[v0] Redirecting to payment URL:", response.data.payment.paymentUrl);
+          window.location.href = response.data.payment.paymentUrl;
+          return;
         } else if (method === "CASH") {
           // Show success message for cash payment
+          console.log("[v0] Cash payment selected - showing success");
           setStep(3);
           setTimeout(() => {
             if (onSuccess) onSuccess();
           }, 2000);
+        } else {
+          // Payment method without redirect
+          console.log("[v0] Payment method without redirect:", method);
+          alert("Payment method not fully configured");
         }
       } else {
         console.error("Monthly pass creation failed:", response.data.message);
