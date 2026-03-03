@@ -7,7 +7,8 @@ import B2CPartnerDriver from "../models/B2CPartnerDriver.js";
 import User from "../models/User.js";
 import { generatePassCertificate } from "../Services/passCertificateService.js";
 import { sendPassEmail } from "../Services/emailService.js";
-import { createStripePaymentSession } from "../Services/stripePaymentService.js";
+import PaymentGatewayService from "../Services/paymentGatewayService.js";
+import { getPaymentGateway, detectCountryFromCurrency } from "../Config/paymentGateways.js";
 
 // Create B2C Monthly Pass
 export const createB2CMonthlyPass = async (req, res) => {
@@ -535,55 +536,73 @@ export const createB2CMonthlyPass = async (req, res) => {
             console.error("[v0] Error generating pass certificate:", certError);
         }
 
-        // Handle Stripe payment if needed
-        let paymentUrl = null;
-        if (paymentMethod === "STRIPE" && totalAmount > 0) {
+        // Handle payment gateway if needed
+        let paymentSessionData = null;
+        if (["STRIPE", "TAP", "CARD"].includes(paymentMethod) && totalAmount > 0) {
             try {
-                const stripeSession = await createStripePaymentSession(
-                    totalAmount,
-                    passengerId,
-                    routeId,
-                    monthlyPass._id
-                );
-                paymentUrl = stripeSession.paymentUrl;
+                const country = detectCountryFromCurrency(currency || "AED");
+                const passenger = await User.findById(passengerId);
                 
-                console.log("[v0] Stripe session created:", {
-                    sessionId: stripeSession.sessionId,
+                // Create payment session using PaymentGatewayService
+                paymentSessionData = await PaymentGatewayService.createPaymentSession({
+                    gateway: paymentMethod === "CARD" ? "STRIPE" : paymentMethod,
+                    amount: totalAmount,
+                    currency: currency || "AED",
+                    customer: {
+                        email: passenger?.email,
+                        name: passenger?.firstName + " " + passenger?.lastName,
+                        phone: passenger?.phoneNumber
+                    },
+                    contractId: monthlyPass._id,
+                    redirectUrl: `${process.env.FRONTEND_URL}/payment-success`,
+                    webhookUrl: `${process.env.BACKEND_URL}/api/webhook/payment`,
+                    metadata: {
+                        passengerId: passengerId.toString(),
+                        routeId: routeId.toString(),
+                        passType: passType,
+                        bookingId: passengerBooking._id.toString()
+                    }
+                });
+                
+                console.log("[v0] Payment session created:", {
+                    gateway: paymentSessionData.provider,
+                    sessionId: paymentSessionData.sessionId,
                     amount: totalAmount,
                     passenger: passengerId
                 });
                 
                 // Update pass with payment pending status
                 monthlyPass.paymentStatus = 'PENDING_PAYMENT';
+                monthlyPass.gatewaySessionId = paymentSessionData.sessionId;
+                monthlyPass.paymentGateway = paymentSessionData.provider;
                 await monthlyPass.save();
                 
                 passengerBooking.paymentStatus = 'PENDING_PAYMENT';
+                passengerBooking.gatewaySessionId = paymentSessionData.sessionId;
                 await passengerBooking.save();
-            } catch (stripeError) {
-                console.error("[v0] Stripe payment session creation failed:", stripeError.message);
-                // Mark pass as pending payment
-                monthlyPass.paymentStatus = 'STRIPE_FAILED';
+            } catch (paymentError) {
+                console.error("[v0] Payment session creation failed:", paymentError.message);
+                monthlyPass.paymentStatus = 'PAYMENT_FAILED';
                 await monthlyPass.save();
                 
                 return res.status(400).json({
                     success: false,
-                    message: "Failed to initialize Stripe payment",
-                    error: stripeError.message
+                    message: "Failed to initialize payment",
+                    error: paymentError.message
                 });
             }
         }
 
         res.status(201).json({
             success: true,
-            message: paymentMethod === "STRIPE" ? 
+            message: paymentSessionData ? 
                 "Payment session initiated. Proceed to payment." : 
                 "Monthly pass created successfully",
             monthlyPass: {
                 ...monthlyPass.toObject(),
                 daysRemaining: monthlyPass.daysRemaining,
                 isActive: monthlyPass.isActive,
-                usagePercentage: monthlyPass.usagePercentage,
-                paymentStatus: monthlyPass.paymentStatus
+                usagePercentage: monthlyPass.usagePercentage
             },
             monthlyPassBooking: {
                 bookingId: passengerBooking._id,
@@ -608,8 +627,14 @@ export const createB2CMonthlyPass = async (req, res) => {
                     tripsWithAvailableSeats: [...createdTrips, ...existingTrips].length
                 }
             },
-            paymentUrl: paymentUrl,
-            paymentRequired: paymentMethod === "STRIPE",
+            payment: paymentSessionData ? {
+                paymentUrl: paymentSessionData.paymentUrl,
+                sessionId: paymentSessionData.sessionId,
+                provider: paymentSessionData.provider,
+                amount: totalAmount,
+                currency: currency || "AED"
+            } : null,
+            paymentRequired: !!paymentSessionData,
             paymentMethod: paymentMethod
         });
 
