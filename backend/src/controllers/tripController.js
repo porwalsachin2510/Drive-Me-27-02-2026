@@ -642,18 +642,22 @@ export const getMyBookings = async (req, res) => {
             .populate('driverId', 'name email phone fullName whatsappNumber')
             .sort({ tripDate: 1 });
 
-        // Resolve driver names (Driver model uses 'name', User model uses 'fullName')
+        // Resolve driver names and add seat info
         const myBookings = await Promise.all(trips.map(async (trip) => {
             const myPassenger = trip.passengers.find(p => 
                 p.employeeId.toString() === employeeId
             );
+
+            // Skip if passenger not found (safety check)
+            if (!myPassenger) {
+                return null;
+            }
 
             const tripObj = trip.toObject();
 
             // Resolve driver name - try multiple sources
             let driverName = null;
             let driverContact = null;
-            const rawDriverId = trip._doc?.driverId || tripObj.driverId;
             const populatedDriver = tripObj.driverId;
 
             // 1. Check if populate worked (populated object has _id and name/fullName)
@@ -663,8 +667,8 @@ export const getMyBookings = async (req, res) => {
             }
 
             // 2. If no name yet, check if driverId is actually a Driver model ObjectId
-            if (!driverName) {
-                const driverObjectId = (populatedDriver && typeof populatedDriver === 'object') ? populatedDriver._id : populatedDriver;
+            if (!driverName && populatedDriver) {
+                const driverObjectId = (typeof populatedDriver === 'object' && populatedDriver._id) ? populatedDriver._id : populatedDriver;
                 if (driverObjectId) {
                     try {
                         // Check Driver model directly
@@ -673,13 +677,15 @@ export const getMyBookings = async (req, res) => {
                             driverName = driverDoc.name;
                             driverContact = driverDoc.phone || driverContact;
                         }
-                    } catch (e) {}
+                    } catch (e) {
+                        console.log("[v0] Driver lookup failed:", e.message);
+                    }
                 }
             }
 
             // 3. If still no name, find the User account that has this driverId
-            if (!driverName) {
-                const driverObjectId = (populatedDriver && typeof populatedDriver === 'object') ? populatedDriver._id : populatedDriver;
+            if (!driverName && populatedDriver) {
+                const driverObjectId = (typeof populatedDriver === 'object' && populatedDriver._id) ? populatedDriver._id : populatedDriver;
                 if (driverObjectId) {
                     try {
                         const driverUser = await User.findOne({ driverId: driverObjectId }).select('fullName whatsappNumber phone');
@@ -687,13 +693,15 @@ export const getMyBookings = async (req, res) => {
                             driverName = driverUser.fullName;
                             driverContact = driverUser.whatsappNumber || driverUser.phone || driverContact;
                         }
-                    } catch (e) {}
+                    } catch (e) {
+                        console.log("[v0] User lookup failed:", e.message);
+                    }
                 }
             }
 
             // 4. Last resort: look up the User directly by _id (if driverId IS a User _id)
-            if (!driverName) {
-                const driverObjectId = (populatedDriver && typeof populatedDriver === 'object') ? populatedDriver._id : populatedDriver;
+            if (!driverName && populatedDriver) {
+                const driverObjectId = (typeof populatedDriver === 'object' && populatedDriver._id) ? populatedDriver._id : populatedDriver;
                 if (driverObjectId) {
                     try {
                         const userDoc = await User.findById(driverObjectId).select('fullName whatsappNumber phone');
@@ -701,7 +709,9 @@ export const getMyBookings = async (req, res) => {
                             driverName = userDoc.fullName;
                             driverContact = userDoc.whatsappNumber || userDoc.phone || driverContact;
                         }
-                    } catch (e) {}
+                    } catch (e) {
+                        console.log("[v0] User direct lookup failed:", e.message);
+                    }
                 }
             }
 
@@ -712,9 +722,12 @@ export const getMyBookings = async (req, res) => {
                 driverContact: driverContact || 'Not available',
                 vehicleName: tripObj.vehicleId?.vehicleName || tripObj.vehicleId?.model || 'Not assigned',
                 vehicleNumber: tripObj.vehicleId?.registrationNumber || tripObj.vehicleId?.licensePlate || 'Not assigned',
+                seatNumber: myPassenger?.seatNumber || 'N/A',
+                pickupPoint: myPassenger?.pickupPoint || 'Not specified',
+                pickupTime: myPassenger?.pickupTime || 'Not specified',
                 myBooking: myPassenger
             };
-        }));
+        })).then(results => results.filter(b => b !== null)); // Filter out null entries
 
         res.json({
             success: true,

@@ -499,9 +499,11 @@ function EmployeeTripBooking() {
                         <p><strong>Date:</strong> {formatDate(booking.tripDate || booking.date)}</p>
                         <p><strong>Time:</strong> {booking.startTime} {booking.endTime ? `- ${booking.endTime}` : ''}</p>
                         <p><strong>Type:</strong> {booking.tripType || 'One Way'}</p>
-                        <p><strong>Vehicle:</strong> {booking.vehicleName || booking.vehicleNumber || 'Not assigned'}</p>
-                        <p><strong>Driver:</strong> {booking.driverName && booking.driverName !== 'Not assigned' ? booking.driverName : (booking.driverId?.fullName || booking.driverId?.name || (booking.driverId ? 'Driver Assigned' : 'Not assigned'))}</p>
-                        <p><strong>Pickup:</strong> {booking.pickupLocation || booking.fromLocation}</p>
+                        <p><strong>Vehicle:</strong> {booking.vehicleName && booking.vehicleName !== 'Not assigned' ? `${booking.vehicleName} (${booking.vehicleNumber})` : 'Not assigned'}</p>
+                        <p><strong>Driver:</strong> {booking.driverName && booking.driverName !== 'Not assigned' ? booking.driverName : 'Not assigned'}</p>
+                        <p><strong>Pickup Point:</strong> {booking.pickupPoint || booking.pickupLocation || 'Not specified'}</p>
+                        <p><strong>Pickup Time:</strong> {booking.pickupTime || 'Not specified'}</p>
+                        <p><strong>Seat Number:</strong> {booking.seatNumber || 'N/A'}</p>
                       </div>
 
                       <div className="employee-trip-booking-booking-actions">

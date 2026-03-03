@@ -236,9 +236,13 @@ const EmployeeFeedback = () => {
             // Build display values - handle both pending trips and feedback history items
             const routeDisplay = trip.route || trip.routeName || 
               `${trip.fromLocation || trip.pickupLocation || ''} \u2192 ${trip.toLocation || trip.dropoffLocation || ''}`;
-            const vehicleDisplay = trip.vehicleNumber || trip.vehicleName || 'Not assigned';
-            const driverDisplay = trip.driverName || 'Not assigned';
-            const seatDisplay = trip.seatNumber || trip.seat || null;
+            const vehicleDisplay = trip.vehicleName && trip.vehicleName !== 'Not assigned' 
+              ? `${trip.vehicleName} ${trip.vehicleNumber && trip.vehicleNumber !== 'Not assigned' ? `(${trip.vehicleNumber})` : ''}`
+              : trip.vehicleNumber && trip.vehicleNumber !== 'Not assigned' 
+                ? trip.vehicleNumber 
+                : 'Not assigned';
+            const driverDisplay = trip.driverName && trip.driverName !== 'Not assigned' ? trip.driverName : 'Not assigned';
+            const seatDisplay = trip.seatNumber && trip.seatNumber !== 'N/A' ? trip.seatNumber : null;
             const dateDisplay = trip.tripDate || trip.date || trip.travelDate;
             const timeDisplay = trip.startTime || (trip.pickupTime ? formatTime(trip.pickupTime) : '');
 
