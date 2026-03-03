@@ -1247,114 +1247,25 @@ const CorporateAssignedVehiclesPage = () => {
                           </div>
                         </div>
                       </div>
-              <form onSubmit={handleTripSubmit} className="modal-form">
-                <div className="form-group">
-                  <label className="form-label">Trip Schedules</label>
-                  <div className="trip-schedules">
-                    {tripForm.tripSchedules.map((schedule, index) => (
-                      <div key={index} className="schedule-item">
-                        <div className="schedule-header">
-                          <span className="schedule-number">Trip {index + 1}</span>
-                          {tripForm.tripSchedules.length > 1 && (
-                            <button
-                              type="button"
-                              className="remove-schedule-btn"
-                              onClick={() => removeSchedule(index)}
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
-                        <div className="schedule-fields">
-                          <div className="form-group">
-                            <label>Trip Type</label>
-                            <div className="trip-type-selector-small">
-                              <button
-                                type="button"
-                                className={`trip-type-btn-small ${schedule.tripType === "ONE_WAY" ? "selected" : ""}`}
-                                onClick={() => handleTripTypeChangeForSchedule(index, "ONE_WAY")}
-                              >
-                                🚗 One Way
-                              </button>
-                              <button
-                                type="button"
-                                className={`trip-type-btn-small ${schedule.tripType === "ROUND_TRIP" ? "selected" : ""}`}
-                                onClick={() => handleTripTypeChangeForSchedule(index, "ROUND_TRIP")}
-                              >
-                                �� Round Trip
-                              </button>
-                            </div>
-                          </div>
-                          <div className="form-row">
-                            <div className="form-group">
-                              <label>Start Time</label>
-                              <input
-                                type="time"
-                                value={schedule.startTime}
-                                onChange={(e) => handleScheduleChange(index, "startTime", e.target.value)}
-                                required
-                              />
-                            </div>
-                            <div className="form-group">
-                              <label>End Time</label>
-                              <input
-                                type="time"
-                                value={schedule.endTime}
-                                onChange={(e) => handleScheduleChange(index, "endTime", e.target.value)}
-                                required
-                              />
-                            </div>
-                          </div>
-                          <div className="form-group">
-                            <label>Trip Details</label>
-                            <div className="trip-info-display">
-                              {(() => {
-                                const { from, to } = getRouteLocations();
-                                if (schedule.tripType === "ONE_WAY") {
-                                  return (
-                                    <div className="trip-info-one-way">
-                                      <span className="trip-icon">🚗</span>
-                                      <span className="trip-text">
-                                        One Way: {from} → {to}
-                                      </span>
-                                    </div>
-                                  );
-                                } else {
-                                  return (
-                                    <div className="trip-info-round-trip">
-                                      <span className="trip-icon">🔄</span>
-                                      <span className="trip-text">
-                                        Round Trip: {from} → {to} → {from}
-                                      </span>
-                                    </div>
-                                  );
-                                }
-                              })()}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
                     ))}
                     <button
                       type="button"
-                      className="add-schedule-btn"
+                      className="corporate-assigned-vehicles-modal-add-schedule-btn"
                       onClick={addSchedule}
                     >
                       + Add Another Schedule
                     </button>
                   </div>
                 </div>
-
-                
-                <div className="modal-actions">
+                <div className="corporate-assigned-vehicles-modal-form-actions">
                   <button
                     type="button"
-                    className="btn-cancel"
+                    className="corporate-assigned-vehicles-modal-btn-secondary"
                     onClick={() => setShowTripModal(false)}
                   >
                     Cancel
                   </button>
-                  <button type="submit" className="btn-submit">
+                  <button type="submit" className="corporate-assigned-vehicles-modal-btn-primary">
                     Create Trips
                   </button>
                 </div>
