@@ -9,7 +9,7 @@ import {
 } from "../../../Redux/slices/driverSlice";
 import "./adddrivermodal.css";
 
-function AddDriverModal({ onClose }) {
+function AddDriverModal({ onClose, onSuccess }) {
   const dispatch = useDispatch();
   // eslint-disable-next-line no-unused-vars
   const { loading, error, success } = useSelector((state) => state.driver);
@@ -226,7 +226,11 @@ function AddDriverModal({ onClose }) {
 
       setTimeout(() => {
         dispatch(clearDriverSuccess());
-        onClose();
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          onClose();
+        }
       }, 1500);
     } catch (err) {
       console.error("Error creating driver:", err);

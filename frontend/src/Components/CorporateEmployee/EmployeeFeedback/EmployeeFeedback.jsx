@@ -82,17 +82,17 @@ const EmployeeFeedback = () => {
 
   const fetchFeedbackHistory = async () => {
     try {
-      // Backend: GET /api/travel-history/my-history (travelHistoryRoutes.js)
-      const response = await api.get('/travel-history/my-history');
+      // Fetch feedback from employee dashboard (stored in CorporateEmployee.feedback.feedbackHistory)
+      const response = await api.get('/corporate-employee-users/dashboard');
       
       if (response.data.success) {
-        const data = response.data.data || response.data;
-        const feedbacks = data?.feedbacks || data?.history || [];
-        setFeedbackHistory(Array.isArray(feedbacks) ? feedbacks : []);
+        const dashData = response.data.data;
+        // Employee feedback is stored in the employee profile
+        const employeeFeedback = dashData?.employeeProfile?.feedback?.feedbackHistory || [];
+        setFeedbackHistory(Array.isArray(employeeFeedback) ? employeeFeedback : []);
       }
     } catch (error) {
       console.error('Error fetching feedback history:', error);
-      // Don't show error for missing endpoints - silently handle
       setFeedbackHistory([]);
     }
   };
@@ -122,8 +122,9 @@ const EmployeeFeedback = () => {
           comments: '',
           suggestions: ''
         });
-        // Refresh feedback history
+        // Refresh both lists after successful submission
         fetchFeedbackHistory();
+        fetchCompletedTrips();
       } else {
         setError(response.data.message || 'Failed to submit feedback');
       }
@@ -183,7 +184,12 @@ const EmployeeFeedback = () => {
     );
   };
 
-  const currentTrips = activeTab === 'pending' ? completedTrips : feedbackHistory;
+  // Filter out trips that already have feedback
+  const ratedTripIds = feedbackHistory.map(fb => fb.tripId?.toString?.() || fb.tripId);
+  const pendingTrips = completedTrips.filter(trip => 
+    !ratedTripIds.includes(trip._id?.toString?.() || trip._id)
+  );
+  const currentTrips = activeTab === 'pending' ? pendingTrips : feedbackHistory;
 
   if (loading) {
     return (
@@ -210,7 +216,7 @@ const EmployeeFeedback = () => {
           className={`tab-btn ${activeTab === 'pending' ? 'active' : ''}`}
           onClick={() => setActiveTab('pending')}
         >
-          Pending Feedback ({completedTrips.length})
+          Pending Feedback ({pendingTrips.length})
         </button>
         <button
           className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
@@ -227,21 +233,21 @@ const EmployeeFeedback = () => {
           </div>
         ) : (
           currentTrips.map((trip, index) => (
-            <div key={index} className="trip-card">
+            <div key={trip._id || trip.tripId || index} className="trip-card">
               <div className="trip-info">
                 <div className="trip-details">
-                  <h3>{trip.routeName}</h3>
-                  <p className="route">{trip.pickupLocation} → {trip.dropoffLocation}</p>
+                  <h3>{trip.route || trip.routeName || `${trip.fromLocation || trip.pickupLocation || ''} → ${trip.toLocation || trip.dropoffLocation || ''}`}</h3>
+                  <p className="route">{trip.route || `${trip.pickupLocation || trip.fromLocation || ''} → ${trip.dropoffLocation || trip.toLocation || ''}`}</p>
                   <div className="time-details">
-                    <span className="date">{formatDate(trip.tripDate)}</span>
-                    <span className="time">{formatTime(trip.pickupTime)}</span>
+                    <span className="date">{trip.tripDate ? formatDate(trip.tripDate) : ''}</span>
+                    <span className="time">{trip.startTime || (trip.pickupTime ? formatTime(trip.pickupTime) : '')}</span>
                   </div>
                 </div>
                 
                 <div className="vehicle-info">
-                  <p><strong>Vehicle:</strong> {trip.vehicleNumber}</p>
-                  <p><strong>Driver:</strong> {trip.driverName}</p>
-                  <p><strong>Seat:</strong> {trip.seatNumber}</p>
+                  <p><strong>Vehicle:</strong> {trip.vehicleNumber || trip.vehicleName || 'N/A'}</p>
+                  <p><strong>Driver:</strong> {trip.driverName || 'N/A'}</p>
+                  <p><strong>Seat:</strong> {trip.seatNumber || 'N/A'}</p>
                 </div>
               </div>
 
@@ -264,25 +270,21 @@ const EmployeeFeedback = () => {
                     <div className="rating-breakdown">
                       <div className="rating-item">
                         <span>Driver:</span>
-                        {renderStars(trip.driverRating)}
+                        {renderStars(trip.driverRating || 0)}
                       </div>
                       <div className="rating-item">
                         <span>Punctuality:</span>
-                        {renderStars(trip.punctualityRating)}
+                        {renderStars(trip.punctualityRating || 0)}
                       </div>
                       <div className="rating-item">
                         <span>Cleanliness:</span>
-                        {renderStars(trip.cleanlinessRating)}
-                      </div>
-                      <div className="rating-item">
-                        <span>Safety:</span>
-                        {renderStars(trip.safetyRating)}
+                        {renderStars(trip.vehicleRating || trip.cleanlinessRating || 0)}
                       </div>
                     </div>
-                    {trip.comments && (
+                    {(trip.comments || trip.comment) && (
                       <div className="feedback-comments">
                         <strong>Comments:</strong>
-                        <p>{trip.comments}</p>
+                        <p>{trip.comments || trip.comment}</p>
                       </div>
                     )}
                     {trip.suggestions && (
@@ -292,7 +294,7 @@ const EmployeeFeedback = () => {
                       </div>
                     )}
                     <div className="feedback-date">
-                      <small>Submitted on: {formatDate(trip.createdAt)}</small>
+                      <small>Submitted on: {formatDate(trip.submittedAt || trip.ratedAt || trip.createdAt)}</small>
                     </div>
                   </div>
                 )}

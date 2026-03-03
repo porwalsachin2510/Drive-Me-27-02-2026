@@ -488,6 +488,28 @@ export const getAvailableCorporateDrivers = async (req, res) => {
     }
 }
 
+// Get ALL corporate drivers (for Drivers tab in Corporate dashboard)
+export const getAllCorporateDrivers = async (req, res) => {
+    try {
+        const drivers = await CorporateDriver.find({
+            corporateOwnerId: req.userId,
+        }).sort({ createdAt: -1 })
+
+        res.status(200).json({
+            success: true,
+            count: drivers.length,
+            drivers,
+        })
+    } catch (error) {
+        console.error("Error fetching corporate drivers:", error)
+        res.status(500).json({
+            success: false,
+            message: "Error fetching corporate drivers",
+            error: error.message,
+        })
+    }
+}
+
 // Create B2C Partner Driver
 export const createB2CPartnerDriver = async (req, res) => {
     try {

@@ -26,6 +26,7 @@ const CorporateAssignedVehiclesPage = () => {
   const [showAddCorporateDriverModal, setShowAddCorporateDriverModal] =
     useState(false);
   const [availableDrivers, setAvailableDrivers] = useState([]);
+  const [corporateDrivers, setCorporateDrivers] = useState([]);
   const [driversLoading, setDriversLoading] = useState(false);
 
   console.log("availableDrivers", availableDrivers);
@@ -68,6 +69,17 @@ const CorporateAssignedVehiclesPage = () => {
     ]
   });
   const [showTripModal, setShowTripModal] = useState(false);
+
+  const fetchCorporateDrivers = useCallback(async () => {
+    try {
+      const response = await api.get("/corporate/corporate-drivers");
+      if (response.data.success) {
+        setCorporateDrivers(response.data.drivers || []);
+      }
+    } catch (err) {
+      console.error("Error fetching corporate drivers:", err);
+    }
+  }, []);
 
   const fetchAvailableDrivers = async () => {
     try {
@@ -121,7 +133,8 @@ const CorporateAssignedVehiclesPage = () => {
     }
 
     fetchAssignedVehicles();
-  }, [contractId, fetchAssignedVehicles]);
+    fetchCorporateDrivers();
+  }, [contractId, fetchAssignedVehicles, fetchCorporateDrivers]);
 
   useEffect(() => {
     if (assignedVehicles && assignedVehicles.length > 0) {
@@ -466,6 +479,12 @@ const CorporateAssignedVehiclesPage = () => {
           >
             Routes ({routes.length})
           </button>
+          <button
+            className={`tab-button ${activeTab === "drivers" ? "active" : ""}`}
+            onClick={() => setActiveTab("drivers")}
+          >
+            Drivers ({corporateDrivers.length})
+          </button>
         </div>
 
         {/* Vehicles Tab */}
@@ -690,6 +709,70 @@ const CorporateAssignedVehiclesPage = () => {
                         </div>
                       )}
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Drivers Tab */}
+        {activeTab === "drivers" && (
+          <div className="corporate-assigned-vehicles-content">
+            {corporateDrivers.length === 0 ? (
+              <div className="empty-state">
+                <p>No drivers added yet. Click "+ Add Driver" to add one.</p>
+              </div>
+            ) : (
+              <div className="vehicles-grid">
+                {corporateDrivers.map((driver) => (
+                  <div key={driver._id} className="vehicle-card-premium">
+                    <div className="vehicle-card-header-premium">
+                      <div className="vehicle-name-badge">
+                        <h3>{driver.name}</h3>
+                        <span className={`vehicle-category-badge ${driver.status === 'AVAILABLE' ? '' : 'status-assigned'}`}>
+                          {driver.status}
+                        </span>
+                      </div>
+                      <p className="vehicle-reg-premium">{driver.phone}</p>
+                    </div>
+
+                    <div className="assignment-card">
+                      <div className="assignment-card-header">
+                        <span className="assignment-label">License Details</span>
+                      </div>
+                      <div className="assignment-details">
+                        <p><strong>License No:</strong> {driver.licenseNumber}</p>
+                        <p><strong>License Type:</strong> {driver.licenseType}</p>
+                        <p><strong>Expiry:</strong> {new Date(driver.licenseExpiry).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+
+                    <div className="assignment-card">
+                      <div className="assignment-card-header">
+                        <span className="assignment-label">Personal Info</span>
+                      </div>
+                      <div className="assignment-details">
+                        <p><strong>Email:</strong> {driver.email}</p>
+                        <p><strong>Nationality:</strong> {driver.nationality}</p>
+                        <p><strong>Experience:</strong> {driver.experience?.years || 0} years</p>
+                        {driver.address?.city && (
+                          <p><strong>City:</strong> {driver.address.city}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {driver.ratings?.count > 0 && (
+                      <div className="assignment-card">
+                        <div className="assignment-card-header">
+                          <span className="assignment-label">Ratings</span>
+                        </div>
+                        <div className="assignment-details">
+                          <p><strong>Average:</strong> {driver.ratings.average.toFixed(1)} / 5</p>
+                          <p><strong>Total Reviews:</strong> {driver.ratings.count}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1057,6 +1140,10 @@ const CorporateAssignedVehiclesPage = () => {
         {showAddCorporateDriverModal && (
           <AddDriverModal
             onClose={() => setShowAddCorporateDriverModal(false)}
+            onSuccess={() => {
+              setShowAddCorporateDriverModal(false);
+              fetchCorporateDrivers();
+            }}
           />
         )}
 
@@ -1107,7 +1194,7 @@ const CorporateAssignedVehiclesPage = () => {
                                 className={`trip-type-btn-small ${schedule.tripType === "ROUND_TRIP" ? "selected" : ""}`}
                                 onClick={() => handleTripTypeChangeForSchedule(index, "ROUND_TRIP")}
                               >
-                                🔄 Round Trip
+                                �� Round Trip
                               </button>
                             </div>
                           </div>

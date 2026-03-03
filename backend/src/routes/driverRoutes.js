@@ -8,6 +8,7 @@ import {
     getAllDrivers,
     createCorporateDriver,
     getAvailableCorporateDrivers,
+    getAllCorporateDrivers,
     createB2CPartnerDriver,
     getB2CPartnerDrivers,
     updateB2CPartnerDriver,
@@ -32,6 +33,7 @@ router.delete("/:driverId", verifyToken, checkFleetOwnerRole, deleteDriver)
 
 
 router.post("/create-corporate-driver", verifyToken, checkCorporateOwnerRole, uploadDriverDocuments, handleMulterError, createCorporateDriver)
+router.get("/corporate-drivers", verifyToken, checkCorporateOwnerRole, getAllCorporateDrivers)
 router.get("/available-corporate-driver", verifyToken, checkCorporateOwnerRole, getAvailableCorporateDrivers)
 
 // B2C Partner Driver Routes

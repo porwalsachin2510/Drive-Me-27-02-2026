@@ -291,6 +291,9 @@ export const getEmployeeDashboard = async (req, res) => {
                     companyName: employee.companyId?.companyName || employee.companyId?.fullName,
                     businessName: employee.companyId?.businessName
                 },
+                employeeProfile: {
+                    feedback: employee.feedback || { totalRides: 0, averageRating: 0, feedbackHistory: [] }
+                },
                 travelHistory: historyData,
                 upcomingTrips: upcomingTripsData.trips || [],
                 todayTrips,

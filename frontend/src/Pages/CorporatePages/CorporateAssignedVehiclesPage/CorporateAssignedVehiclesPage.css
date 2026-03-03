@@ -154,6 +154,14 @@
   text-transform: uppercase;
 }
 
+.vehicle-category-badge.status-assigned {
+  background: rgba(255, 193, 7, 0.4);
+}
+
+.vehicle-category-badge.status-inactive {
+  background: rgba(239, 68, 68, 0.4);
+}
+
 .vehicle-reg-premium {
   margin: 0;
   font-size: 13px;

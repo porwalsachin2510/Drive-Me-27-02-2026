@@ -5,25 +5,25 @@
     font-family: 'Inter', sans-serif;
 }
 
-.dashboard-header {
+.employee-dashboard .dashboard-header {
     text-align: center;
     color: white;
     margin-bottom: 40px;
 }
 
-.dashboard-header h1 {
+.employee-dashboard .dashboard-header h1 {
     font-size: 32px;
     font-weight: 700;
     margin-bottom: 10px;
 }
 
-.dashboard-header .subtitle {
+.employee-dashboard .dashboard-header .subtitle {
     font-size: 16px;
     font-weight: 400;
     opacity: 0.9;
 }
 
-.dashboard-tabs {
+.employee-dashboard .dashboard-tabs {
     display: flex;
     gap: 10px;
     margin-bottom: 30px;
@@ -34,7 +34,7 @@
     margin-right: auto;
 }
 
-.tab-btn {
+.employee-dashboard .tab-btn {
     padding: 12px 24px;
     border: 2px solid rgba(255, 255, 255, 0.7);
     background: rgba(255, 255, 255, 0.15);
@@ -47,19 +47,19 @@
     backdrop-filter: blur(4px);
 }
 
-.tab-btn:hover {
+.employee-dashboard .tab-btn:hover {
     border-color: white;
     background: rgba(255, 255, 255, 0.25);
 }
 
-.tab-btn.active {
+.employee-dashboard .tab-btn.active {
     background: white;
     color: #667eea;
     border-color: white;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.dashboard-content {
+.employee-dashboard .dashboard-content {
     max-width: 1200px;
     margin: 0 auto;
     background: white;
@@ -68,15 +68,15 @@
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
 }
 
-.tab-content h2 {
+.employee-dashboard .tab-content h2 {
     font-size: 24px;
     font-weight: 700;
     color: #1f2937;
     margin-bottom: 30px;
 }
 
-.loading,
-.empty-state {
+.employee-dashboard .loading,
+.employee-dashboard .empty-state {
     text-align: center;
     padding: 60px 20px;
     color: #6b7280;
@@ -84,20 +84,20 @@
 }
 
 /* Trip Info Cards */
-.trip-info-cards {
+.employee-dashboard .trip-info-cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 20px;
 }
 
-.info-card {
+.employee-dashboard .info-card {
     background: #f9fafb;
     padding: 20px;
     border-radius: 8px;
     border-left: 4px solid #667eea;
 }
 
-.info-card label {
+.employee-dashboard .info-card label {
     font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
@@ -106,14 +106,14 @@
     margin-bottom: 8px;
 }
 
-.info-card p {
+.employee-dashboard .info-card p {
     font-size: 16px;
     font-weight: 600;
     color: #1f2937;
     margin: 0;
 }
 
-.info-card small {
+.employee-dashboard .info-card small {
     font-size: 13px;
     color: #6b7280;
     display: block;
@@ -121,12 +121,12 @@
 }
 
 /* Bookings List */
-.bookings-list {
+.employee-dashboard .bookings-list {
     display: grid;
     gap: 15px;
 }
 
-.booking-card {
+.employee-dashboard .booking-card {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -137,25 +137,25 @@
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.booking-card:hover {
+.employee-dashboard .booking-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(102, 126, 234, 0.1);
 }
 
-.booking-info h3 {
+.employee-dashboard .booking-info h3 {
     font-size: 16px;
     font-weight: 700;
     color: #1f2937;
     margin: 0 0 8px 0;
 }
 
-.booking-info .date {
+.employee-dashboard .booking-info .date {
     font-size: 14px;
     color: #6b7280;
     margin: 0;
 }
 
-.status {
+.employee-dashboard .status {
     display: inline-block;
     padding: 4px 12px;
     border-radius: 20px;
@@ -164,32 +164,32 @@
     margin-top: 8px;
 }
 
-.status.confirmed {
+.employee-dashboard .status.confirmed {
     background: #d1fae5;
     color: #047857;
 }
 
-.status.pending {
+.employee-dashboard .status.pending {
     background: #fef3c7;
     color: #d97706;
 }
 
-.status.completed {
+.employee-dashboard .status.completed {
     background: #dbeafe;
     color: #0369a1;
 }
 
-.status.cancelled {
+.employee-dashboard .status.cancelled {
     background: #fee2e2;
     color: #dc2626;
 }
 
-.booking-actions {
+.employee-dashboard .booking-actions {
     display: flex;
     gap: 10px;
 }
 
-.cancel-btn {
+.employee-dashboard .cancel-btn {
     padding: 8px 16px;
     background: #ef4444;
     color: white;
@@ -201,17 +201,17 @@
     transition: background 0.3s;
 }
 
-.cancel-btn:hover {
+.employee-dashboard .cancel-btn:hover {
     background: #dc2626;
 }
 
 /* History List */
-.history-list {
+.employee-dashboard .history-list {
     display: grid;
     gap: 10px;
 }
 
-.history-item {
+.employee-dashboard .history-item {
     display: grid;
     grid-template-columns: 100px 1fr 100px;
     gap: 20px;
@@ -222,19 +222,19 @@
     border-left: 4px solid #667eea;
 }
 
-.history-date {
+.employee-dashboard .history-date {
     font-weight: 600;
     color: #667eea;
     font-size: 14px;
 }
 
-.history-route {
+.employee-dashboard .history-route {
     font-size: 15px;
     color: #1f2937;
     font-weight: 600;
 }
 
-.history-status {
+.employee-dashboard .history-status {
     font-size: 13px;
     padding: 6px 12px;
     background: #d1fae5;
@@ -245,12 +245,12 @@
 }
 
 /* Notifications List */
-.notifications-list {
+.employee-dashboard .notifications-list {
     display: grid;
     gap: 15px;
 }
 
-.notification-item {
+.employee-dashboard .notification-item {
     padding: 20px;
     background: #f9fafb;
     border-radius: 8px;
@@ -258,25 +258,25 @@
     transition: all 0.3s;
 }
 
-.notification-item.unread {
+.employee-dashboard .notification-item.unread {
     background: #eff6ff;
     border-left-color: #0ea5e9;
 }
 
-.notif-title {
+.employee-dashboard .notif-title {
     font-size: 15px;
     font-weight: 700;
     color: #1f2937;
     margin-bottom: 8px;
 }
 
-.notif-message {
+.employee-dashboard .notif-message {
     font-size: 14px;
     color: #6b7280;
     margin-bottom: 10px;
 }
 
-.notif-time {
+.employee-dashboard .notif-time {
     font-size: 12px;
     color: #9ca3af;
 }
@@ -287,34 +287,34 @@
         padding: 20px 10px;
     }
 
-    .dashboard-header h1 {
+    .employee-dashboard .dashboard-header h1 {
         font-size: 24px;
     }
 
-    .dashboard-content {
+    .employee-dashboard .dashboard-content {
         padding: 20px;
     }
 
-    .booking-card {
+    .employee-dashboard .booking-card {
         flex-direction: column;
         align-items: flex-start;
     }
 
-    .booking-actions {
+    .employee-dashboard .booking-actions {
         width: 100%;
         margin-top: 15px;
     }
 
-    .cancel-btn {
+    .employee-dashboard .cancel-btn {
         flex: 1;
     }
 
-    .history-item {
+    .employee-dashboard .history-item {
         grid-template-columns: 1fr;
         gap: 10px;
     }
 
-    .trip-info-cards {
+    .employee-dashboard .trip-info-cards {
         grid-template-columns: 1fr;
     }
 }
