@@ -668,6 +668,53 @@ export const rateTrip = async (req, res) => {
             });
         }
 
+        // Resolve vehicle and driver info for storing in feedback
+        let vehicleName = 'N/A';
+        let vehicleNumber = 'N/A';
+        let driverName = 'N/A';
+        let seatNumber = null;
+
+        // Get vehicle info
+        if (trip.vehicleId) {
+            try {
+                const Vehicle = (await import("../models/Vehicle.js")).default;
+                const vehicle = await Vehicle.findById(trip.vehicleId).select('vehicleName registrationNumber');
+                if (vehicle) {
+                    vehicleName = vehicle.vehicleName || 'N/A';
+                    vehicleNumber = vehicle.registrationNumber || 'N/A';
+                }
+            } catch (e) {}
+        }
+
+        // Get driver info
+        if (trip.driverId) {
+            try {
+                const Driver = (await import("../models/Driver.js")).default;
+                const User = (await import("../models/User.js")).default;
+                // Try Driver model
+                const driverDoc = await Driver.findById(trip.driverId).select('name');
+                if (driverDoc) {
+                    driverName = driverDoc.name;
+                } else {
+                    // Try User model
+                    const userDoc = await User.findById(trip.driverId).select('fullName');
+                    if (userDoc) {
+                        driverName = userDoc.fullName;
+                    } else {
+                        // Try User by driverId field
+                        const driverUser = await User.findOne({ driverId: trip.driverId }).select('fullName');
+                        if (driverUser) driverName = driverUser.fullName;
+                    }
+                }
+            } catch (e) {}
+        }
+
+        // Get seat number from passenger entry
+        const passengerEntry = trip.passengers?.find(p => 
+            p.employeeId && p.employeeId.toString() === userId.toString()
+        );
+        seatNumber = passengerEntry?.seatNumber || passengerEntry?.seat || null;
+
         // Store feedback with all detailed fields
         const feedbackComment = comments || feedback || "";
         employee.feedback.feedbackHistory.push({
@@ -680,7 +727,12 @@ export const rateTrip = async (req, res) => {
             suggestions: suggestions || "",
             submittedAt: new Date(),
             route: `${trip.fromLocation || ''} → ${trip.toLocation || ''}`,
-            tripDate: trip.tripDate
+            tripDate: trip.tripDate,
+            vehicleName,
+            vehicleNumber,
+            driverName,
+            seatNumber,
+            startTime: trip.startTime || null
         });
         
         // Recalculate average
@@ -798,17 +850,74 @@ const getEmployeeTravelHistoryFromTrips = async (userId, employee, period) => {
         .populate('driverId', 'fullName whatsappNumber')
         .sort({ tripDate: -1 });
 
-        // Map trips to display format
-        return trips.map(trip => {
+        // Map trips to display format - resolve driver names properly
+        const Driver = (await import("../models/Driver.js")).default;
+        const User = (await import("../models/User.js")).default;
+
+        return await Promise.all(trips.map(async (trip) => {
             // Check if this employee is a passenger in the trip
             const passengerEntry = trip.passengers?.find(p => 
                 p.employeeId && p.employeeId.toString() === userId.toString()
             );
+
+            // Resolve driver name - try multiple sources
+            let driverName = null;
+            let driverContact = null;
+            const driverDoc = trip.driverId;
+
+            // 1. Check if populate worked (User model)
+            if (driverDoc && typeof driverDoc === 'object' && driverDoc._id) {
+                driverName = driverDoc.name || driverDoc.fullName || null;
+                driverContact = driverDoc.phone || driverDoc.whatsappNumber || null;
+            }
+
+            // 2. Check Driver model directly
+            if (!driverName) {
+                const driverObjectId = (driverDoc && typeof driverDoc === 'object') ? driverDoc._id : driverDoc;
+                if (driverObjectId) {
+                    try {
+                        const driver = await Driver.findById(driverObjectId).select('name phone email');
+                        if (driver) {
+                            driverName = driver.name;
+                            driverContact = driver.phone || driverContact;
+                        }
+                    } catch (e) {}
+                }
+            }
+
+            // 3. Find User account that has this driverId
+            if (!driverName) {
+                const driverObjectId = (driverDoc && typeof driverDoc === 'object') ? driverDoc._id : driverDoc;
+                if (driverObjectId) {
+                    try {
+                        const driverUser = await User.findOne({ driverId: driverObjectId }).select('fullName whatsappNumber phone');
+                        if (driverUser) {
+                            driverName = driverUser.fullName;
+                            driverContact = driverUser.whatsappNumber || driverUser.phone || driverContact;
+                        }
+                    } catch (e) {}
+                }
+            }
+
+            // 4. Last resort: look up User directly by _id
+            if (!driverName) {
+                const driverObjectId = (driverDoc && typeof driverDoc === 'object') ? driverDoc._id : driverDoc;
+                if (driverObjectId) {
+                    try {
+                        const userDoc = await User.findById(driverObjectId).select('fullName whatsappNumber phone');
+                        if (userDoc) {
+                            driverName = userDoc.fullName;
+                            driverContact = userDoc.whatsappNumber || userDoc.phone || driverContact;
+                        }
+                    } catch (e) {}
+                }
+            }
             
             return {
                 _id: trip._id,
                 date: trip.tripDate,
                 travelDate: trip.tripDate,
+                tripDate: trip.tripDate,
                 fromLocation: trip.fromLocation || trip.routeId?.fromLocation || 'Unknown',
                 toLocation: trip.toLocation || trip.routeId?.toLocation || 'Unknown',
                 route: `${trip.fromLocation || 'Unknown'} → ${trip.toLocation || 'Unknown'}`,
@@ -822,10 +931,12 @@ const getEmployeeTravelHistoryFromTrips = async (userId, employee, period) => {
                     (trip.status === 'COMPLETED' ? 'PRESENT' : 'SCHEDULED'),
                 vehicleName: trip.vehicleId?.vehicleName || 'Not assigned',
                 vehicleNumber: trip.vehicleId?.registrationNumber || 'Not assigned',
-                driverName: trip.driverId?.fullName || 'Not assigned',
-                driverContact: trip.driverId?.whatsappNumber || 'Not available'
+                vehicleCategory: trip.vehicleId?.vehicleCategory || '',
+                driverName: driverName || 'Not assigned',
+                driverContact: driverContact || 'Not available',
+                seatNumber: passengerEntry?.seatNumber || passengerEntry?.seat || null
             };
-        });
+        }));
 
     } catch (error) {
         console.error("Error getting employee travel history from trips:", error);

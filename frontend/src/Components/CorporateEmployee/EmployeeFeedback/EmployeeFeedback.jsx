@@ -232,22 +232,31 @@ const EmployeeFeedback = () => {
             <p>No {activeTab === 'pending' ? 'trips pending feedback' : 'feedback history'} found.</p>
           </div>
         ) : (
-          currentTrips.map((trip, index) => (
+          currentTrips.map((trip, index) => {
+            // Build display values - handle both pending trips and feedback history items
+            const routeDisplay = trip.route || trip.routeName || 
+              `${trip.fromLocation || trip.pickupLocation || ''} \u2192 ${trip.toLocation || trip.dropoffLocation || ''}`;
+            const vehicleDisplay = trip.vehicleNumber || trip.vehicleName || 'Not assigned';
+            const driverDisplay = trip.driverName || 'Not assigned';
+            const seatDisplay = trip.seatNumber || trip.seat || null;
+            const dateDisplay = trip.tripDate || trip.date || trip.travelDate;
+            const timeDisplay = trip.startTime || (trip.pickupTime ? formatTime(trip.pickupTime) : '');
+
+            return (
             <div key={trip._id || trip.tripId || index} className="trip-card">
               <div className="trip-info">
                 <div className="trip-details">
-                  <h3>{trip.route || trip.routeName || `${trip.fromLocation || trip.pickupLocation || ''} → ${trip.toLocation || trip.dropoffLocation || ''}`}</h3>
-                  <p className="route">{trip.route || `${trip.pickupLocation || trip.fromLocation || ''} → ${trip.dropoffLocation || trip.toLocation || ''}`}</p>
+                  <h3>{routeDisplay}</h3>
                   <div className="time-details">
-                    <span className="date">{trip.tripDate ? formatDate(trip.tripDate) : ''}</span>
-                    <span className="time">{trip.startTime || (trip.pickupTime ? formatTime(trip.pickupTime) : '')}</span>
+                    <span className="date">{dateDisplay ? formatDate(dateDisplay) : ''}</span>
+                    <span className="time">{timeDisplay}</span>
                   </div>
                 </div>
                 
                 <div className="vehicle-info">
-                  <p><strong>Vehicle:</strong> {trip.vehicleNumber || trip.vehicleName || 'N/A'}</p>
-                  <p><strong>Driver:</strong> {trip.driverName || 'N/A'}</p>
-                  <p><strong>Seat:</strong> {trip.seatNumber || 'N/A'}</p>
+                  <p><strong>Vehicle:</strong> {vehicleDisplay}</p>
+                  <p><strong>Driver:</strong> {driverDisplay}</p>
+                  {seatDisplay && <p><strong>Seat:</strong> {seatDisplay}</p>}
                 </div>
               </div>
 
@@ -300,7 +309,8 @@ const EmployeeFeedback = () => {
                 )}
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
 
