@@ -2953,6 +2953,8 @@ export const getB2CPartnerEarnings = async (req, res) => {
     try {
         const { period = 'monthly' } = req.query;
         const userId = req.userId;
+        const mongoose = (await import('mongoose')).default;
+        const B2CPassengerBooking = (await import("../models/B2CPassengerBooking.js")).default;
 
         // Date ranges
         const now = new Date();
@@ -2962,23 +2964,26 @@ export const getB2CPartnerEarnings = async (req, res) => {
         const lastWeekStart = new Date(weekStart);
         lastWeekStart.setDate(lastWeekStart.getDate() - 7);
 
-        // Get all completed payments/transactions for this partner
+        const partnerObjId = new mongoose.Types.ObjectId(userId);
+        const completedStatuses = ['COMPLETED', 'ACCEPTED', 'IN_PROGRESS'];
+
+        // Get earnings from B2CPassengerBooking (where partner gets driverEarnings or paymentAmount)
         const [totalResult, todayResult, thisWeekResult, lastWeekResult] = await Promise.all([
-            Payment.aggregate([
-                { $match: { userId: new (await import('mongoose')).default.Types.ObjectId(userId), status: { $in: ['COMPLETED', 'PROCESSING'] }, type: { $in: ['B2C_BOOKING', 'B2C_SUBSCRIPTION', 'B2C_TRIP_EARNING'] } } },
-                { $group: { _id: null, total: { $sum: '$amount' } } }
+            B2CPassengerBooking.aggregate([
+                { $match: { $or: [{ b2cPartnerId: partnerObjId }, { partnerId: partnerObjId }], bookingStatus: { $in: completedStatuses } } },
+                { $group: { _id: null, total: { $sum: { $ifNull: ["$driverEarnings", "$paymentAmount"] } } } }
             ]),
-            Payment.aggregate([
-                { $match: { userId: new (await import('mongoose')).default.Types.ObjectId(userId), status: { $in: ['COMPLETED', 'PROCESSING'] }, type: { $in: ['B2C_BOOKING', 'B2C_SUBSCRIPTION', 'B2C_TRIP_EARNING'] }, createdAt: { $gte: todayStart } } },
-                { $group: { _id: null, total: { $sum: '$amount' } } }
+            B2CPassengerBooking.aggregate([
+                { $match: { $or: [{ b2cPartnerId: partnerObjId }, { partnerId: partnerObjId }], bookingStatus: { $in: completedStatuses }, createdAt: { $gte: todayStart } } },
+                { $group: { _id: null, total: { $sum: { $ifNull: ["$driverEarnings", "$paymentAmount"] } } } }
             ]),
-            Payment.aggregate([
-                { $match: { userId: new (await import('mongoose')).default.Types.ObjectId(userId), status: { $in: ['COMPLETED', 'PROCESSING'] }, type: { $in: ['B2C_BOOKING', 'B2C_SUBSCRIPTION', 'B2C_TRIP_EARNING'] }, createdAt: { $gte: weekStart } } },
-                { $group: { _id: null, total: { $sum: '$amount' } } }
+            B2CPassengerBooking.aggregate([
+                { $match: { $or: [{ b2cPartnerId: partnerObjId }, { partnerId: partnerObjId }], bookingStatus: { $in: completedStatuses }, createdAt: { $gte: weekStart } } },
+                { $group: { _id: null, total: { $sum: { $ifNull: ["$driverEarnings", "$paymentAmount"] } } } }
             ]),
-            Payment.aggregate([
-                { $match: { userId: new (await import('mongoose')).default.Types.ObjectId(userId), status: { $in: ['COMPLETED', 'PROCESSING'] }, type: { $in: ['B2C_BOOKING', 'B2C_SUBSCRIPTION', 'B2C_TRIP_EARNING'] }, createdAt: { $gte: lastWeekStart, $lt: weekStart } } },
-                { $group: { _id: null, total: { $sum: '$amount' } } }
+            B2CPassengerBooking.aggregate([
+                { $match: { $or: [{ b2cPartnerId: partnerObjId }, { partnerId: partnerObjId }], bookingStatus: { $in: completedStatuses }, createdAt: { $gte: lastWeekStart, $lt: weekStart } } },
+                { $group: { _id: null, total: { $sum: { $ifNull: ["$driverEarnings", "$paymentAmount"] } } } }
             ])
         ]);
 
@@ -2996,15 +3001,15 @@ export const getB2CPartnerEarnings = async (req, res) => {
             weekChange = "+100%";
         }
 
-        // Get transaction history grouped by date
-        const transactionHistory = await Payment.aggregate([
-            { $match: { userId: new (await import('mongoose')).default.Types.ObjectId(userId), status: { $in: ['COMPLETED', 'PROCESSING'] }, type: { $in: ['B2C_BOOKING', 'B2C_SUBSCRIPTION', 'B2C_TRIP_EARNING'] } } },
+        // Get transaction history grouped by date from B2CPassengerBooking
+        const transactionHistory = await B2CPassengerBooking.aggregate([
+            { $match: { $or: [{ b2cPartnerId: partnerObjId }, { partnerId: partnerObjId }], bookingStatus: { $in: completedStatuses } } },
             { $sort: { createdAt: -1 } },
             { $group: {
                 _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
                 trips: { $sum: 1 },
-                totalAmount: { $sum: '$amount' },
-                status: { $first: '$status' }
+                totalAmount: { $sum: { $ifNull: ["$driverEarnings", "$paymentAmount"] } },
+                status: { $first: '$paymentStatus' }
             }},
             { $sort: { _id: -1 } },
             { $limit: 20 }
@@ -3013,8 +3018,8 @@ export const getB2CPartnerEarnings = async (req, res) => {
         const transactions = transactionHistory.map(t => ({
             date: t._id,
             trips: t.trips,
-            amount: `+${t.totalAmount.toFixed(3)} KWD`,
-            status: t.status === 'COMPLETED' ? 'Paid' : 'Pending'
+            amount: `+${(t.totalAmount || 0).toFixed(3)} KWD`,
+            status: t.status === 'PAID' ? 'Paid' : 'Pending'
         }));
 
         res.status(200).json({

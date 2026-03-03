@@ -674,74 +674,57 @@ export const getEmployeeFeedbackSummary = async (req, res) => {
         const managerId = req.userId;
         const companyId = await resolveCompanyId(req.userId);
 
-        // Get all employees under this company
-        const employees = await CorporateEmployee.find({ companyId }).select("_id userId personalInfo");
-        const employeeUserIds = employees.map(e => e.userId);
+        // Get all employees under this company with feedback data
+        const employees = await CorporateEmployee.find({ companyId }).select("_id userId personalInfo feedback");
 
-        // Get feedback data from corporate bookings
-        const CorporateBooking = (await import("../models/CorporateBooking.js")).default;
-        
-        const feedbackAggregation = await CorporateBooking.aggregate([
-            {
-                $match: {
-                    passengerId: { $in: employeeUserIds },
-                    $or: [
-                        { rating: { $exists: true, $ne: null } },
-                        { feedback: { $exists: true, $ne: "" } }
-                    ]
-                }
-            },
-            {
-                $group: {
-                    _id: null,
-                    averageRating: { $avg: "$rating" },
-                    totalFeedbacks: { $sum: 1 },
-                    ratingBreakdown: {
-                        $push: "$rating"
-                    },
-                    recentFeedbacks: {
-                        $push: {
-                            passengerId: "$passengerId",
-                            rating: "$rating",
-                            feedback: "$feedback",
-                            date: "$travelDate"
-                        }
-                    }
-                }
-            }
-        ]);
+        // Aggregate feedback from CorporateEmployee.feedback.feedbackHistory
+        let totalFeedbacks = 0;
+        let allRatings = [];
+        let recentFeedbacks = [];
 
-        const summary = feedbackAggregation[0] || {
-            averageRating: 0,
-            totalFeedbacks: 0,
-            ratingBreakdown: [],
-            recentFeedbacks: []
-        };
+        employees.forEach(emp => {
+            const history = emp.feedback?.feedbackHistory || [];
+            history.forEach(fb => {
+                if (fb.rating) {
+                    totalFeedbacks++;
+                    allRatings.push(fb.rating);
+                    recentFeedbacks.push({
+                        passengerId: emp.userId,
+                        employeeName: `${emp.personalInfo?.firstName || ''} ${emp.personalInfo?.lastName || ''}`.trim() || "Unknown",
+                        rating: fb.rating,
+                        feedback: fb.comments || fb.comment || "",
+                        suggestions: fb.suggestions || "",
+                        driverRating: fb.driverRating || null,
+                        punctualityRating: fb.punctualityRating || null,
+                        vehicleRating: fb.vehicleRating || null,
+                        date: fb.submittedAt || fb.ratedAt,
+                        route: fb.route || "",
+                        tripDate: fb.tripDate
+                    });
+                }
+            });
+        });
+
+        // Calculate average
+        const averageRating = allRatings.length > 0
+            ? allRatings.reduce((sum, r) => sum + r, 0) / allRatings.length
+            : 0;
 
         // Calculate rating distribution
         const ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-        (summary.ratingBreakdown || []).forEach(r => {
+        allRatings.forEach(r => {
             if (r >= 1 && r <= 5) ratingDistribution[Math.round(r)]++;
         });
 
-        // Get last 10 feedbacks sorted by date
-        const recentFeedbacks = (summary.recentFeedbacks || [])
-            .filter(f => f.feedback)
-            .sort((a, b) => new Date(b.date) - new Date(a.date))
-            .slice(0, 10);
-
-        // Map passenger IDs to names
-        const employeeMap = {};
-        employees.forEach(e => { employeeMap[e.userId?.toString()] = e.fullName || `${e.personalInfo?.firstName || ''} ${e.personalInfo?.lastName || ''}`.trim(); });
-        recentFeedbacks.forEach(f => {
-            f.employeeName = employeeMap[f.passengerId?.toString()] || "Unknown";
-        });
+        // Sort by date and take last 10
+        recentFeedbacks.sort((a, b) => new Date(b.date) - new Date(a.date));
+        recentFeedbacks = recentFeedbacks.slice(0, 10);
 
         res.status(200).json({
             success: true,
             data: {
-                averageRating: Math.round((summary.averageRating || 0) * 10) / 10,
-                totalFeedbacks: summary.totalFeedbacks || 0,
+                averageRating: Math.round(averageRating * 10) / 10,
+                totalFeedbacks,
                 totalEmployees: employees.length,
                 ratingDistribution,
                 recentFeedbacks

@@ -23,6 +23,7 @@ export default function CorporateDriverDashboard() {
   const [activeMainTab, setActiveMainTab] = useState("bookings");
   const [isSharingLocation, setIsSharingLocation] = useState(false);
   const [activeTrip, setActiveTrip] = useState(null);
+  const [corporateInfo, setCorporateInfo] = useState(null);
   const locationIntervalRef = useRef(null);
 
    const navigate = useNavigate();
@@ -187,6 +188,20 @@ export default function CorporateDriverDashboard() {
     }
   }, [user?._id]);
 
+  const fetchCorporateInfo = useCallback(async () => {
+    try {
+      // Fetch the corporate owner info using employedBy
+      if (user?.employedBy) {
+        const response = await api.get(`/auth/user/${user.employedBy}`);
+        if (response.data?.success) {
+          setCorporateInfo(response.data.user || response.data.data);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching corporate info:", error);
+    }
+  }, [user?.employedBy]);
+
   const startTrip = async (bookingId) => {
     try {
       const response = await api.put(`/bookings/corporate/${bookingId}/start`);
@@ -266,6 +281,10 @@ export default function CorporateDriverDashboard() {
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
+
+  useEffect(() => {
+    fetchCorporateInfo();
+  }, [fetchCorporateInfo]);
 
   useEffect(() => {
     if (!socket || !socket.socket) return;
@@ -363,6 +382,11 @@ const filteredBookings = bookings.filter((booking) => {
         <h1>Corporate Driver Dashboard</h1>
         <div className="corp-driver-driver-info">
           <span>Welcome, {user?.fullName}</span>
+          {corporateInfo && (
+            <span className="corp-driver-company-name" style={{ fontSize: "14px", color: "#666", marginLeft: "8px" }}>
+              | {corporateInfo.companyName || corporateInfo.fullName}
+            </span>
+          )}
           <div
             className={`corp-driver-location-status ${isSharingLocation ? "active" : ""}`}
           >

@@ -74,7 +74,7 @@ export default function EmployeeDashboard() {
 
   const handleCancelBooking = async (bookingId) => {
     try {
-      await api.post("/corporate-employee-users/booking", { action: "cancel", bookingId });
+      await api.post("/corporate-employee-users/booking", { action: "cancel", tripId: bookingId });
       setMyBookings(myBookings.filter((b) => b._id !== bookingId));
     } catch (err) {
       console.error("Error canceling booking:", err);

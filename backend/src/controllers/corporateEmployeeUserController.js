@@ -628,7 +628,8 @@ export const markNotTravelingToday = async (req, res) => {
 export const rateTrip = async (req, res) => {
     try {
         const userId = req.userId;
-        const { tripId, rating, feedback, complaints } = req.body;
+        const { tripId, rating, feedback, complaints, comments, suggestions,
+                driverRating, punctualityRating, cleanlinessRating, safetyRating } = req.body;
 
         const employee = await CorporateEmployee.findOne({ userId });
 
@@ -649,17 +650,33 @@ export const rateTrip = async (req, res) => {
             });
         }
 
-        // Store feedback in employee's feedback history
+        // Check if this trip has already been rated by this employee
         if (!employee.feedback) employee.feedback = { totalRides: 0, averageRating: 0, feedbackHistory: [] };
         if (!employee.feedback.feedbackHistory) employee.feedback.feedbackHistory = [];
-        
+
+        const alreadyRated = employee.feedback.feedbackHistory.find(
+            f => f.tripId && f.tripId.toString() === tripId.toString()
+        );
+
+        if (alreadyRated) {
+            return res.status(400).json({
+                success: false,
+                message: "You have already submitted feedback for this trip"
+            });
+        }
+
+        // Store feedback with all detailed fields
+        const feedbackComment = comments || feedback || "";
         employee.feedback.feedbackHistory.push({
             tripId,
             rating,
-            comment: feedback || "",
-            complaints: complaints || [],
-            ratedAt: new Date(),
-            route: `${trip.fromLocation} → ${trip.toLocation}`,
+            comments: feedbackComment,
+            driverRating: driverRating || null,
+            punctualityRating: punctualityRating || null,
+            vehicleRating: cleanlinessRating || null,
+            suggestions: suggestions || "",
+            submittedAt: new Date(),
+            route: `${trip.fromLocation || ''} → ${trip.toLocation || ''}`,
             tripDate: trip.tripDate
         });
         
@@ -678,7 +695,12 @@ export const rateTrip = async (req, res) => {
             data: {
                 tripId: trip._id,
                 rating,
-                feedback,
+                comments: feedbackComment,
+                suggestions: suggestions || "",
+                driverRating,
+                punctualityRating,
+                cleanlinessRating,
+                safetyRating,
                 ratedAt: new Date()
             }
         });

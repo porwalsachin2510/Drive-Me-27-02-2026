@@ -111,11 +111,13 @@ export const getOpenRequirements = async (req, res) => {
 
         const partnerId = req.userId;
         
-        // Build query for open requirements - PUBLIC published + INVITE_ONLY where partner is invited
+        // Build query for open requirements - PUBLIC (PUBLISHED or DRAFT) + INVITE_ONLY where partner is invited
         let query = {
-            status: "PUBLISHED",
+            status: { $in: ["PUBLISHED", "DRAFT", "OPEN"] },
             $or: [
                 { visibility: "PUBLIC" },
+                { visibility: { $exists: false } },
+                { visibility: null },
                 { visibility: "INVITE_ONLY", invitedPartners: partnerId }
             ],
             isDeleted: false
