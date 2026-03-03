@@ -9,8 +9,19 @@ function AdminComm() {
   const [loading, setLoading] = useState(true)
   const [templates, setTemplates] = useState([])
   const [sentMessages, setSentMessages] = useState([])
-  const [emailConfig, setEmailConfig] = useState({})
-  const [whatsappConfig, setWhatsappConfig] = useState({})
+  const [emailConfig, setEmailConfig] = useState({
+    smtpHost: '',
+    smtpPort: '',
+    username: '',
+    password: '',
+    active: false
+  })
+  const [whatsappConfig, setWhatsappConfig] = useState({
+    accountSid: '',
+    authToken: '',
+    phoneNumber: '',
+    active: false
+  })
 
   // WhatsApp state
   const [selectedTemplate, setSelectedTemplate] = useState("promo")
@@ -295,7 +306,7 @@ function AdminComm() {
               <label>SMTP Host</label>
               <input
                 type="text"
-                value={emailConfig.smtpHost || ''}
+                value={emailConfig?.smtpHost || ''}
                 onChange={(e) => setEmailConfig({...emailConfig, smtpHost: e.target.value})}
               />
             </div>
@@ -303,7 +314,7 @@ function AdminComm() {
               <label>SMTP Port</label>
               <input
                 type="text"
-                value={emailConfig.smtpPort || ''}
+                value={emailConfig?.smtpPort || ''}
                 onChange={(e) => setEmailConfig({...emailConfig, smtpPort: e.target.value})}
               />
             </div>
@@ -311,7 +322,7 @@ function AdminComm() {
               <label>Username</label>
               <input
                 type="email"
-                value={emailConfig.username || ''}
+                value={emailConfig?.username || ''}
                 onChange={(e) => setEmailConfig({...emailConfig, username: e.target.value})}
               />
             </div>
@@ -319,7 +330,7 @@ function AdminComm() {
               <label>Password</label>
               <input
                 type="password"
-                value={emailConfig.password || ''}
+                value={emailConfig?.password || ''}
                 onChange={(e) => setEmailConfig({...emailConfig, password: e.target.value})}
               />
             </div>
@@ -327,7 +338,7 @@ function AdminComm() {
               <label>
                 <input
                   type="checkbox"
-                  checked={emailConfig.active || false}
+                  checked={emailConfig?.active || false}
                   onChange={(e) => setEmailConfig({...emailConfig, active: e.target.checked})}
                 />
                 Active
@@ -349,7 +360,7 @@ function AdminComm() {
               <label>Account SID</label>
               <input
                 type="text"
-                value={whatsappConfig.accountSid || ''}
+                value={whatsappConfig?.accountSid || ''}
                 onChange={(e) => setWhatsappConfig({...whatsappConfig, accountSid: e.target.value})}
               />
             </div>
@@ -357,7 +368,7 @@ function AdminComm() {
               <label>Auth Token</label>
               <input
                 type="password"
-                value={whatsappConfig.authToken || ''}
+                value={whatsappConfig?.authToken || ''}
                 onChange={(e) => setWhatsappConfig({...whatsappConfig, authToken: e.target.value})}
               />
             </div>
@@ -365,7 +376,7 @@ function AdminComm() {
               <label>Phone Number</label>
               <input
                 type="tel"
-                value={whatsappConfig.phoneNumber || ''}
+                value={whatsappConfig?.phoneNumber || ''}
                 onChange={(e) => setWhatsappConfig({...whatsappConfig, phoneNumber: e.target.value})}
               />
             </div>
@@ -373,7 +384,7 @@ function AdminComm() {
               <label>
                 <input
                   type="checkbox"
-                  checked={whatsappConfig.active || false}
+                  checked={whatsappConfig?.active || false}
                   onChange={(e) => setWhatsappConfig({...whatsappConfig, active: e.target.checked})}
                 />
                 Active

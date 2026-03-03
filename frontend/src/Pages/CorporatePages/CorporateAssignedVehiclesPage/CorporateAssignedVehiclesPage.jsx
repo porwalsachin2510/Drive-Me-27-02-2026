@@ -645,47 +645,47 @@ const CorporateAssignedVehiclesPage = () => {
         {activeTab === "routes" && (
           <div className="corporate-assigned-vehicles-content">
             {routes.length === 0 ? (
-              <div className="empty-state">
+              <div className="corporate-assigned-vehicles-empty-state">
                 <p>No routes assigned yet</p>
               </div>
             ) : (
-              <div className="routes-grid">
+              <div className="corporate-assigned-vehicles-routes-grid">
                 {routes.map((route) => (
-                  <div key={route._id} className="route-card-premium">
-                    <div className="route-card-header-premium">
+                  <div key={route._id} className="corporate-assigned-vehicles-route-card-premium">
+                    <div className="corporate-assigned-vehicles-route-card-header-premium">
                       <h3>
                         {route.fromLocation} → {route.toLocation}
                       </h3>
-                      <span className="route-status-badge">{route.status}</span>
+                      <span className="corporate-assigned-vehicles-route-status-badge">{route.status}</span>
                     </div>
-                    <div className="route-card-body">
-                      <div className="route-info">
-                        <p className="route-detail">
+                    <div className="corporate-assigned-vehicles-route-card-body">
+                      <div className="corporate-assigned-vehicles-route-info">
+                        <p className="corporate-assigned-vehicles-route-detail">
                           <strong>🚗 Vehicle:</strong> {route.vehicleName} (
                           {route.registrationNumber})
                         </p>
-                        <p className="route-detail">
+                        <p className="corporate-assigned-vehicles-route-detail">
                           <strong>📅 Start Date:</strong>{" "}
                           {new Date(route.routeStartDate).toLocaleDateString()}
                         </p>
-                        <p className="route-detail">
+                        <p className="corporate-assigned-vehicles-route-detail">
                           <strong>📏 Distance:</strong> {route.totalDistance} km
                         </p>
-                        <p className="route-detail">
+                        <p className="corporate-assigned-vehicles-route-detail">
                           <strong>⏳ Duration:</strong>{" "}
                           {route.estimatedDuration}
                         </p>
                         {route.routeNotes && (
-                          <p className="route-detail">
+                          <p className="corporate-assigned-vehicles-route-detail">
                             <strong>📝 Notes:</strong> {route.routeNotes}
                           </p>
                         )}
                       </div>
 
                       {/* Create Trips Button */}
-                      <div className="route-actions">
+                      <div className="corporate-assigned-vehicles-route-actions">
                         <button 
-                          className="create-trips-btn"
+                          className="corporate-assigned-vehicles-create-trips-btn"
                           onClick={() => openTripModal(route._id)}
                         >
                           🚀 Create Trips
@@ -694,15 +694,15 @@ const CorporateAssignedVehiclesPage = () => {
 
                       {/* Stop Points */}
                       {route.stopPoints && route.stopPoints.length > 0 && (
-                        <div className="stop-points-display">
+                        <div className="corporate-assigned-vehicles-stop-points-display">
                           <strong>🛑 Stop Points:</strong>
-                          <div className="stop-points-list-display">
+                          <div className="corporate-assigned-vehicles-stop-points-list-display">
                             {route.stopPoints.map((stop, idx) => (
-                              <div key={idx} className="stop-point-display">
-                                <span className="stop-location">
+                              <div key={idx} className="corporate-assigned-vehicles-stop-point-display">
+                                <span className="corporate-assigned-vehicles-stop-location">
                                   {stop.location}
                                 </span>
-                                <span className="stop-time">{stop.time}</span>
+                                <span className="corporate-assigned-vehicles-stop-time">{stop.time}</span>
                               </div>
                             ))}
                           </div>
@@ -1149,17 +1149,104 @@ const CorporateAssignedVehiclesPage = () => {
 
         {/* Trip Creation Modal */}
         {showTripModal && (
-          <div className="modal-overlay" onClick={() => setShowTripModal(false)}>
-            <div className="modal-premium" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header-premium">
+          <div className="corporate-assigned-vehicles-modal-overlay" onClick={() => setShowTripModal(false)}>
+            <div className="corporate-assigned-vehicles-modal-premium" onClick={(e) => e.stopPropagation()}>
+              <div className="corporate-assigned-vehicles-modal-header-premium">
                 <h2>🚀 Create Trips from Route</h2>
                 <button 
-                  className="modal-close" 
+                  className="corporate-assigned-vehicles-modal-close" 
                   onClick={() => setShowTripModal(false)}
                 >
                   ✕
                 </button>
               </div>
+              <form onSubmit={handleTripSubmit} className="corporate-assigned-vehicles-modal-form">
+                <div className="corporate-assigned-vehicles-form-group">
+                  <label className="corporate-assigned-vehicles-form-label">Trip Schedules</label>
+                  <div className="corporate-assigned-vehicles-modal-trip-schedules">
+                    {tripForm.tripSchedules.map((schedule, index) => (
+                      <div key={index} className="corporate-assigned-vehicles-modal-schedule-item">
+                        <div className="corporate-assigned-vehicles-modal-schedule-header">
+                          <span className="corporate-assigned-vehicles-modal-schedule-number">Trip {index + 1}</span>
+                          {tripForm.tripSchedules.length > 1 && (
+                            <button
+                              type="button"
+                              className="corporate-assigned-vehicles-modal-remove-schedule-btn"
+                              onClick={() => removeSchedule(index)}
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                        <div className="corporate-assigned-vehicles-modal-schedule-fields">
+                          <div className="corporate-assigned-vehicles-form-group">
+                            <label>Trip Type</label>
+                            <div className="corporate-assigned-vehicles-modal-trip-type-selector-small">
+                              <button
+                                type="button"
+                                className={`corporate-assigned-vehicles-modal-trip-type-btn-small ${schedule.tripType === "ONE_WAY" ? "corporate-assigned-vehicles-modal-selected" : ""}`}
+                                onClick={() => handleTripTypeChangeForSchedule(index, "ONE_WAY")}
+                              >
+                                🚗 One Way
+                              </button>
+                              <button
+                                type="button"
+                                className={`corporate-assigned-vehicles-modal-trip-type-btn-small ${schedule.tripType === "ROUND_TRIP" ? "corporate-assigned-vehicles-modal-selected" : ""}`}
+                                onClick={() => handleTripTypeChangeForSchedule(index, "ROUND_TRIP")}
+                              >
+                                🔄 Round Trip
+                              </button>
+                            </div>
+                          </div>
+                          <div className="corporate-assigned-vehicles-modal-form-row">
+                            <div className="corporate-assigned-vehicles-form-group">
+                              <label>Start Time</label>
+                              <input
+                                type="time"
+                                value={schedule.startTime}
+                                onChange={(e) => handleScheduleChange(index, "startTime", e.target.value)}
+                                required
+                              />
+                            </div>
+                            <div className="corporate-assigned-vehicles-form-group">
+                              <label>End Time</label>
+                              <input
+                                type="time"
+                                value={schedule.endTime}
+                                onChange={(e) => handleScheduleChange(index, "endTime", e.target.value)}
+                                required
+                              />
+                            </div>
+                          </div>
+                          <div className="corporate-assigned-vehicles-form-group">
+                            <label>Trip Details</label>
+                            <div className="corporate-assigned-vehicles-modal-trip-info-display">
+                              {(() => {
+                                const { from, to } = getRouteLocations();
+                                if (schedule.tripType === "ONE_WAY") {
+                                  return (
+                                    <div className="corporate-assigned-vehicles-modal-trip-info-one-way">
+                                      <span className="corporate-assigned-vehicles-modal-trip-icon">🚗</span>
+                                      <span className="corporate-assigned-vehicles-modal-trip-text">
+                                        One Way: {from} → {to}
+                                      </span>
+                                    </div>
+                                  );
+                                } else {
+                                  return (
+                                    <div className="corporate-assigned-vehicles-modal-trip-info-round-trip">
+                                      <span className="corporate-assigned-vehicles-modal-trip-icon">🔄</span>
+                                      <span className="corporate-assigned-vehicles-modal-trip-text">
+                                        Round Trip: {from} → {to} → {from}
+                                      </span>
+                                    </div>
+                                  );
+                                }
+                              })()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
               <form onSubmit={handleTripSubmit} className="modal-form">
                 <div className="form-group">
                   <label className="form-label">Trip Schedules</label>

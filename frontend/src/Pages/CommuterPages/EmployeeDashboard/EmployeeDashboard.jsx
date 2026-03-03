@@ -141,52 +141,52 @@ export default function EmployeeDashboard() {
   return (
     <>
     <Navbar activeTab={navTab} setActiveTab={setNavTab} />
-    <div className="employee-dashboard">
-      <div className="dashboard-header">
+    <div className="employee-dashboard-corporate-container">
+      <div className="employee-dashboard-corporate-header">
         <h1>Welcome, {user?.fullName || "Employee"}</h1>
-        <p className="subtitle">Corporate Employee Transportation Dashboard</p>
+        <p className="employee-dashboard-corporate-subtitle">Corporate Employee Transportation Dashboard</p>
       </div>
 
-      <div className="dashboard-tabs">
+      <div className="employee-dashboard-corporate-tabs">
         <button
-          className={`tab-btn ${dashTab === "trip-info" ? "active" : ""}`}
+          className={`employee-dashboard-corporate-tab-btn ${dashTab === "trip-info" ? "employee-dashboard-corporate-active" : ""}`}
           onClick={() => setDashTab("trip-info")}
         >
           Trip Info
         </button>
         <button
-          className={`tab-btn ${dashTab === "my-bookings" ? "active" : ""}`}
+          className={`employee-dashboard-corporate-tab-btn ${dashTab === "my-bookings" ? "employee-dashboard-corporate-active" : ""}`}
           onClick={() => setDashTab("my-bookings")}
         >
           My Bookings
         </button>
         <button
-          className={`tab-btn ${dashTab === "history" ? "active" : ""}`}
+          className={`employee-dashboard-corporate-tab-btn ${dashTab === "history" ? "employee-dashboard-corporate-active" : ""}`}
           onClick={() => setDashTab("history")}
         >
           History
         </button>
         <button
-          className={`tab-btn ${dashTab === "notifications" ? "active" : ""}`}
+          className={`employee-dashboard-corporate-tab-btn ${dashTab === "notifications" ? "employee-dashboard-corporate-active" : ""}`}
           onClick={() => setDashTab("notifications")}
         >
           Notifications
         </button>
         <button
-          className={`tab-btn ${dashTab === "feedback" ? "active" : ""}`}
+          className={`employee-dashboard-corporate-tab-btn ${dashTab === "feedback" ? "employee-dashboard-corporate-active" : ""}`}
           onClick={() => setDashTab("feedback")}
         >
           Rate & Feedback
         </button>
         <button
-          className={`tab-btn ${dashTab === "route-change" ? "active" : ""}`}
+          className={`employee-dashboard-corporate-tab-btn ${dashTab === "route-change" ? "employee-dashboard-corporate-active" : ""}`}
           onClick={() => setDashTab("route-change")}
         >
           Route Change
         </button>
       </div>
 
-      <div className="dashboard-content">{renderContent()}</div>
+      <div className="employee-dashboard-corporate-content">{renderContent()}</div>
     </div>
     <Footer />
     </>
@@ -195,15 +195,15 @@ export default function EmployeeDashboard() {
 
 function TripInfoTab({ tripInfo, loading, onMarkNotTraveling }) {
   if (loading)
-    return <div className="loading">Loading trip information...</div>;
+    return <div className="employee-dashboard-corporate-loading">Loading trip information...</div>;
   if (!tripInfo)
-    return <div className="empty-state">No trip information available. Please contact your manager to get assigned to a route.</div>;
+    return <div className="employee-dashboard-corporate-empty-state">No trip information available. Please contact your manager to get assigned to a route.</div>;
 
   return (
-    <div className="tab-content">
+    <div className="employee-dashboard-corporate-tab-content">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h2>Your Assigned Route</h2>
-        <button className="cancel-btn" onClick={onMarkNotTraveling}>
+        <button className="employee-dashboard-corporate-cancel-btn" onClick={onMarkNotTraveling}>
           Not Traveling Today
         </button>
       </div>
@@ -215,8 +215,8 @@ function TripInfoTab({ tripInfo, loading, onMarkNotTraveling }) {
             </h3>
             <p style={{ marginBottom: 0, color: "#666" }}>Status: Traveling Today</p>
           </div>
-          <div className="trip-info-cards">
-            <div className="info-card">
+          <div className="employee-dashboard-corporate-trip-info-cards">
+            <div className="employee-dashboard-corporate-info-card">
               <label>Vehicle</label>
               <p>
                 {tripInfo.vehicle?.vehicleName || 
@@ -231,27 +231,27 @@ function TripInfoTab({ tripInfo, loading, onMarkNotTraveling }) {
                 <small style={{ display: "block" }}>Type: {tripInfo.vehicle.vehicleCategory}</small>
               )}
             </div>
-            <div className="info-card">
+            <div className="employee-dashboard-corporate-info-card">
               <label>Driver</label>
               <p>{tripInfo.driver?.fullName || "Not assigned"}</p>
               {tripInfo.driver?.phone && (
                 <small>Phone: {tripInfo.driver.phone}</small>
               )}
             </div>
-            <div className="info-card">
+            <div className="employee-dashboard-corporate-info-card">
               <label>Pickup Stop</label>
               <p>{tripInfo.pickupStop || "Not assigned"}</p>
             </div>
-            <div className="info-card">
+            <div className="employee-dashboard-corporate-info-card">
               <label>Dropoff Stop</label>
               <p>{tripInfo.dropoffStop || "Not assigned"}</p>
             </div>
-            <div className="info-card">
+            <div className="employee-dashboard-corporate-info-card">
               <label>Shift Type</label>
               <p>{tripInfo.shiftType || "Full Day"}</p>
             </div>
             {tripInfo.route?.stopPoints && tripInfo.route.stopPoints.length > 0 && (
-              <div className="info-card" style={{ gridColumn: "span 2" }}>
+              <div className="employee-dashboard-corporate-info-card" style={{ gridColumn: "span 2" }}>
                 <label>Stop Points</label>
                 <div style={{ display: "grid", gap: "8px" }}>
                   {tripInfo.route.stopPoints.map((stop, index) => (
@@ -275,36 +275,36 @@ function TripInfoTab({ tripInfo, loading, onMarkNotTraveling }) {
 }
 
 function MyBookingsTab({ bookings, onCancel, loading }) {
-  if (loading) return <div className="loading">Loading bookings...</div>;
+  if (loading) return <div className="employee-dashboard-corporate-loading">Loading bookings...</div>;
   
   // Ensure bookings is an array
   const bookingsList = Array.isArray(bookings) ? bookings : [];
 
   return (
-    <div className="tab-content">
+    <div className="employee-dashboard-corporate-tab-content">
       <h2>My Bookings</h2>
       {bookingsList.length === 0 ? (
-        <div className="empty-state">No bookings yet</div>
+        <div className="employee-dashboard-corporate-empty-state">No bookings yet</div>
       ) : (
-        <div className="bookings-list">
+        <div className="employee-dashboard-corporate-bookings-list">
           {bookingsList.map((booking) => (
-            <div key={booking._id} className="booking-card">
-              <div className="booking-info">
+            <div key={booking._id} className="employee-dashboard-corporate-booking-card">
+              <div className="employee-dashboard-corporate-booking-info">
                 <h3>
                   {booking.fromLocation} → {booking.toLocation}
                 </h3>
-                <p className="date">
+                <p className="employee-dashboard-corporate-date">
                   {new Date(booking.tripDate).toLocaleDateString()} at{" "}
                   {booking.startTime}
                 </p>
-                <span className={`status ${booking.status.toLowerCase()}`}>
+                <span className={`employee-dashboard-corporate-status employee-dashboard-corporate-status-${booking.status.toLowerCase()}`}>
                   {booking.status}
                 </span>
               </div>
-              <div className="booking-actions">
+              <div className="employee-dashboard-corporate-booking-actions">
                 {booking.status !== "COMPLETED" && (
                   <button
-                    className="cancel-btn"
+                    className="employee-dashboard-corporate-cancel-btn"
                     onClick={() => onCancel(booking._id)}
                   >
                     Cancel
@@ -324,7 +324,7 @@ function HistoryTab({ history, loading, onRate }) {
   const [rating, setRating] = useState(5);
   const [feedback, setFeedback] = useState("");
 
-  if (loading) return <div className="loading">Loading history...</div>;
+  if (loading) return <div className="employee-dashboard-corporate-loading">Loading history...</div>;
   
   // Ensure history is an array
   const historyList = Array.isArray(history) ? history : [];
@@ -337,28 +337,28 @@ function HistoryTab({ history, loading, onRate }) {
   };
 
   return (
-    <div className="tab-content">
+    <div className="employee-dashboard-corporate-tab-content">
       <h2>Travel History</h2>
       {historyList.length === 0 ? (
-        <div className="empty-state">No travel history</div>
+        <div className="employee-dashboard-corporate-empty-state">No travel history</div>
       ) : (
-        <div className="history-list">
+        <div className="employee-dashboard-corporate-history-list">
           {historyList.map((trip) => (
-            <div key={trip._id} className="history-item">
-              <div className="history-date">
+            <div key={trip._id} className="employee-dashboard-corporate-history-item">
+              <div className="employee-dashboard-corporate-history-date">
                 {new Date(trip.date || trip.travelDate).toLocaleDateString()}
               </div>
-              <div className="history-route">
+              <div className="employee-dashboard-corporate-history-route">
                 {trip.fromLocation || trip.route?.fromLocation} → {trip.toLocation || trip.route?.toLocation}
               </div>
-              <div className="history-status">{trip.attendance || trip.status}</div>
+              <div className="employee-dashboard-corporate-history-status">{trip.attendance || trip.status}</div>
               {trip.status === "COMPLETED" && !trip.rating && (
-                <button className="tab-btn" onClick={() => setRatingTrip(trip._id)}>
+                <button className="employee-dashboard-corporate-tab-btn" onClick={() => setRatingTrip(trip._id)}>
                   Rate Trip
                 </button>
               )}
               {ratingTrip === trip._id && (
-                <div className="rating-form" style={{ marginTop: "8px", padding: "12px", background: "#f5f5f5", borderRadius: "8px" }}>
+                <div className="employee-dashboard-corporate-rating-form" style={{ marginTop: "8px", padding: "12px", background: "#f5f5f5", borderRadius: "8px" }}>
                   <div style={{ display: "flex", gap: "4px", marginBottom: "8px" }}>
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
@@ -377,8 +377,8 @@ function HistoryTab({ history, loading, onRate }) {
                     style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ccc", marginBottom: "8px", resize: "vertical" }}
                   />
                   <div style={{ display: "flex", gap: "8px" }}>
-                    <button className="tab-btn active" onClick={() => handleSubmitRating(trip._id)}>Submit</button>
-                    <button className="cancel-btn" onClick={() => setRatingTrip(null)}>Cancel</button>
+                    <button className="employee-dashboard-corporate-tab-btn employee-dashboard-corporate-active" onClick={() => handleSubmitRating(trip._id)}>Submit</button>
+                    <button className="employee-dashboard-corporate-cancel-btn" onClick={() => setRatingTrip(null)}>Cancel</button>
                   </div>
                 </div>
               )}
@@ -391,23 +391,23 @@ function HistoryTab({ history, loading, onRate }) {
 }
 
 function NotificationsTab({ notifications, loading }) {
-  if (loading) return <div className="loading">Loading notifications...</div>;
+  if (loading) return <div className="employee-dashboard-corporate-loading">Loading notifications...</div>;
 
   return (
-    <div className="tab-content">
+    <div className="employee-dashboard-corporate-tab-content">
       <h2>Notifications</h2>
       {notifications.length === 0 ? (
-        <div className="empty-state">No notifications</div>
+        <div className="employee-dashboard-corporate-empty-state">No notifications</div>
       ) : (
-        <div className="notifications-list">
+        <div className="employee-dashboard-corporate-notifications-list">
           {notifications.map((notif) => (
             <div
               key={notif._id}
-              className={`notification-item ${!notif.isRead ? "unread" : ""}`}
+              className={`employee-dashboard-corporate-notification-item ${!notif.isRead ? "employee-dashboard-corporate-unread" : ""}`}
             >
-              <div className="notif-title">{notif.title}</div>
-              <div className="notif-message">{notif.message}</div>
-              <div className="notif-time">
+              <div className="employee-dashboard-corporate-notif-title">{notif.title}</div>
+              <div className="employee-dashboard-corporate-notif-message">{notif.message}</div>
+              <div className="employee-dashboard-corporate-notif-time">
                 {new Date(notif.createdAt).toLocaleString()}
               </div>
             </div>
@@ -434,7 +434,7 @@ function RouteChangeTab({ onSubmit }) {
   };
 
   return (
-    <div className="tab-content">
+    <div className="employee-dashboard-corporate-tab-content">
       <h2>Request Route Change</h2>
       <p style={{ color: "#666", marginBottom: "16px" }}>
         If your pickup/dropoff location has changed, you can request a route change.
@@ -469,7 +469,7 @@ function RouteChangeTab({ onSubmit }) {
             style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #ccc" }}
           />
         </div>
-        <button type="submit" className="tab-btn active" style={{ padding: "10px 24px" }}>
+        <button type="submit" className="employee-dashboard-corporate-tab-btn employee-dashboard-corporate-active" style={{ padding: "10px 24px" }}>
           Submit Request
         </button>
       </form>
